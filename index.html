@@ -6,231 +6,81 @@
   <title>Suivi du Passage du Bus</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    h1 { color: #333; text-align: center; }
+    #map { height: 500px; width: 100%; border: 1px solid #ccc; margin-bottom: 20px; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
     }
-    h1 {
-      color: #333;
-      text-align: center;
+    .row label {
+      margin-right: 10px;
     }
-    #map {
-      height: 500px;
-      width: 100%;
-      border: 1px solid #ccc;
-      margin-bottom: 20px;
+    .row input {
+      padding: 5px;
+      width: 150px;
     }
     button {
-      display: block;
-      margin: 0 auto 10px;
-      padding: 10px 20px;
+      padding: 10px;
       background-color: #4CAF50;
       color: white;
       border: none;
-      border-radius: 4px;
-      font-size: 16px;
       cursor: pointer;
+      font-size: 16px;
     }
     button:hover {
       background-color: #45a049;
-    }
-    #estimationInfo {
-      margin-top: 20px;
-      padding: 15px;
-      background-color: #f8f9fa;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      display: none;
-      text-align: center;
-    }
-    .estimation-title {
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    .estimation-time {
-      font-size: 18px;
-      color: #d32f2f;
     }
   </style>
 </head>
 <body>
   <h1>Suivi du Passage du Bus</h1>
-  <div id="map"></div>
-  <button id="busPassedBtn">Le bus est passé chez moi</button>
-  <button id="refreshBtn">Rafraîchir les données</button>
   
-  <div id="estimationInfo">
-    <div class="estimation-title">Estimation d'arrivée à BNH:</div>
-    <div id="estimationTime" class="estimation-time"></div>
-  </div>
+  <!-- Formulaire pour les coordonnées -->
+  <form id="busForm">
+    <div class="row">
+      <label for="latitude">Latitude :</label>
+      <input type="number" step="any" id="latitude" required />
+    </div>
+    <div class="row">
+      <label for="longitude">Longitude :</label>
+      <input type="number" step="any" id="longitude" required />
+    </div>
+    <button type="submit">Ajouter le passage</button>
+  </form>
+
+  <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    let map;
-    let markers = [];
-    let allStops = [];
-    const BNH_POSITION = [36.716111, 3.201667]; // Position BNH (Point d'arrivée)
-    const BUS_SPEED = 30; // Vitesse moyenne du bus en km/h
+    // Initialisation de la carte avec OpenStreetMap
+    const map = L.map('map').setView([36.7735, 3.0582], 12); // Centrer sur Alger
 
-    // Fonction pour initialiser la carte
-    function initMap() {
-      map = L.map('map').setView([36.7735, 3.0582], 12); // Centre d'Alger
+    // Ajouter les tuiles OpenStreetMap à la carte
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-      // Ajouter le fond de carte
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map);
-
-      // Ajouter un marqueur pour BNH
-      L.marker(BNH_POSITION).addTo(map)
-        .bindPopup("BNH (Point d'arrivée)")
-        .openPopup();
-
-      // Attacher l'événement de clic aux boutons
-      document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
-      document.getElementById('refreshBtn').addEventListener('click', fetchAllStops);
-
-      // Charger initialement tous les arrêts
-      fetchAllStops();
+    // Fonction pour ajouter un marqueur pour un passage de bus
+    function addBusMarker(lat, lng) {
+      const busMarker = L.marker([lat, lng]).addTo(map);
+      busMarker.bindPopup(`<b>Passage de bus à ces coordonnées</b>`).openPopup();
     }
 
-    // Fonction pour chercher tous les arrêts depuis Google Sheets
-    async function fetchAllStops() {
-      try {
-        const response = await fetch('https://script.google.com/macros/s/AKfycbyNpgUKKvDzyVTzmcqWKqMNF-wgEtb3vZZPP3YRV9eNaNKXf8f0oIt3C2RutLFBsGnZ/exec?action=getStops');
-        const data = await response.json();
-
-        // Nettoyer les anciens marqueurs
-        clearMarkers();
-
-        if (data && data.stops) {
-          allStops = data.stops;
-          
-          // Afficher les arrêts sur la carte
-          displayStops(allStops);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des arrêts:", error);
-      }
-    }
-
-    // Fonction pour afficher les arrêts sur la carte
-    function displayStops(stops) {
-      stops.forEach(stop => {
-        const position = [parseFloat(stop.lat), parseFloat(stop.lng)];
-        
-        const marker = L.marker(position).addTo(map);
-        markers.push(marker);
-
-        // Ajouter un popup avec le nom et l'heure
-        marker.bindPopup(`${stop.name} - ${stop.time}`);
-      });
-
-      // Tracer un itinéraire complet si des arrêts existent
-      if (stops.length > 0) {
-        drawFullRoute(stops);
-      }
-    }
-
-    // Nettoyer tous les marqueurs
-    function clearMarkers() {
-      markers.forEach(marker => map.removeLayer(marker));
-      markers = [];
-    }
-
-    // Fonction pour envoyer le signal de passage
-    async function handleBusPassed() {
-      const name = prompt("Quel est votre prénom ?");
-      if (!name) return;
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          const currentPosition = [pos.coords.latitude, pos.coords.longitude];
-
-          try {
-            const nearbyStop = findNearbyStop(currentPosition);
-
-            let entry = {
-              name: name,
-              time: new Date().toLocaleTimeString(),
-              lat: currentPosition[0],
-              lng: currentPosition[1]
-            };
-
-            if (nearbyStop) {
-              if (confirm(`Vous êtes proche de l'arrêt "${nearbyStop.name}". Voulez-vous mettre à jour l'heure de passage pour cet arrêt?`)) {
-                entry = {
-                  ...nearbyStop,
-                  time: new Date().toLocaleTimeString()
-                };
-              }
-            }
-
-            L.marker(currentPosition).addTo(map)
-              .bindPopup(`${name} - ${entry.time}`);
-
-            calculateEstimation(currentPosition);
-            await fetchAllStops();
-          } catch (error) {
-            console.error("Erreur:", error);
-            alert("Une erreur s'est produite. Veuillez réessayer.");
-          }
-        });
-      }
-    }
-
-    // Chercher si l'utilisateur est près d'un arrêt existant
-    function findNearbyStop(position) {
-      const MAX_DISTANCE = 0.1; // 100 mètres en km
+    // Gestion du formulaire pour ajouter un passage de bus
+    document.getElementById('busForm').addEventListener('submit', function(event) {
+      event.preventDefault();
       
-      for (const stop of allStops) {
-        const stopPos = [parseFloat(stop.lat), parseFloat(stop.lng)];
-        const distance = calculateDistance(position[0], position[1], stopPos[0], stopPos[1]);
+      const latitude = parseFloat(document.getElementById('latitude').value);
+      const longitude = parseFloat(document.getElementById('longitude').value);
 
-        if (distance <= MAX_DISTANCE) {
-          return stop;
-        }
-      }
-      return null;
-    }
+      // Ajouter le marqueur pour ce passage
+      addBusMarker(latitude, longitude);
 
-    // Calculer l'estimation du temps d'arrivée
-    function calculateEstimation(currentPosition) {
-      const distance = calculateDistance(currentPosition[0], currentPosition[1], BNH_POSITION[0], BNH_POSITION[1]);
-      const timeInMinutes = Math.round((distance / BUS_SPEED) * 60);
-      const now = new Date();
-      const estimatedArrival = new Date(now.getTime() + timeInMinutes * 60000);
-      const estimatedTimeStr = estimatedArrival.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-      document.getElementById('estimationTime').innerHTML = `
-        ${estimatedTimeStr} (dans environ ${timeInMinutes} minutes)<br>
-        Distance: ${distance.toFixed(1)} km
-      `;
-      document.getElementById('estimationInfo').style.display = 'block';
-    }
-
-    // Calculer la distance entre deux points
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // Rayon de la Terre en km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    // Dessiner un itinéraire complet à partir des arrêts
-    function drawFullRoute(stops) {
-      const latlngs = stops.map(stop => [parseFloat(stop.lat), parseFloat(stop.lng)]);
-      L.polyline(latlngs, {color: 'blue'}).addTo(map);
-    }
-
-    // Initialiser la carte à la première ouverture
-    window.onload = initMap;
+      // Réinitialiser le formulaire
+      document.getElementById('busForm').reset();
+    });
   </script>
 </body>
 </html>
