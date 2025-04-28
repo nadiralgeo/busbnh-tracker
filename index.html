@@ -38,7 +38,7 @@
     document.getElementById('refreshBtn').addEventListener('click', fetchStops);
 
     function fetchStops() {
-      fetch('https://script.google.com/macros/s/AKfycbyHbinQglEZGC9KooQHXLdS0Wqf0Q2UlQgzdCDNsBridZqMwT2CXvZYM6GZtuEymPvu/exec')
+      fetch('https://script.google.com/macros/s/AKfycbxLAb4Vbc5IJu8mcRiDzCxqUPoudhid_TKeoj3_UtthrxUs2dM9--3mSOF79-jm_e9O/exec')
         .then(response => response.json())
         .then(data => {
           clearMarkers();
