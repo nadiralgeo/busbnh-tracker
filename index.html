@@ -34,20 +34,44 @@
     button:hover {
       background-color: #45a049;
     }
+    #estimationInfo {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      display: none;
+      text-align: center;
+    }
+    .estimation-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .estimation-time {
+      font-size: 18px;
+      color: #d32f2f;
+    }
   </style>
 </head>
 <body>
   <h1>Suivi du Passage du Bus</h1>
   <div id="map"></div>
   <button id="busPassedBtn">Le bus est passé chez moi</button>
+  
+  <div id="estimationInfo">
+    <div class="estimation-title">Estimation d'arrivée à BNH:</div>
+    <div id="estimationTime" class="estimation-time"></div>
+  </div>
 
   <script>
     let map;
     const markers = []; // Liste pour stocker les marqueurs
-    const stops = []; // Liste pour stocker les arrêts
+    const passagePoints = []; // Liste pour stocker les points de passage
+    let bnhPoint = null; // Point d'arrivée BNH
+    const BUS_SPEED = 30; // Vitesse moyenne du bus en km/h
     
     // URL du script déployé (à remplacer par votre URL de déploiement)
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw09WY8x6n8zoduars-8WUuDjIKj5ps8gHUVkVZSIoME690qOvVf9gla41iC9sWa1ou/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxp9uq_n2iOcP0G0JI-HzB020T4o4B1eCIhJYrEkFzWOAtgPvtM7t74sZ63YSfcp-hF/exec';
 
     // Fonction pour initialiser la carte
     function initMap() {
@@ -56,8 +80,8 @@
         zoom: 12,
       });
       
-      // Charger les arrêts après l'initialisation de la carte
-      getBusData('ArretsHabituels');
+      // Charger les points de passage après l'initialisation de la carte
+      getPassageData();
     }
 
     // Fonction pour envoyer le signal de passage à Google Sheets
@@ -87,7 +111,12 @@
             });
             
             // Ajouter un nouveau marqueur sur la carte
-            addMarker(entry);
+            addPassagePoint(entry);
+            
+            // Calculer l'estimation vers BNH
+            if (bnhPoint) {
+              calculateEstimation(entry);
+            }
             
             // Feedback à l'utilisateur
             alert("Merci ! Votre passage a été enregistré.");
@@ -104,13 +133,32 @@
       }
     }
 
-    // Fonction pour ajouter un marqueur
-    function addMarker(entry) {
+    // Fonction pour ajouter un point de passage
+    function addPassagePoint(entry) {
+      const point = {
+        name: entry.name,
+        time: entry.time,
+        lat: entry.lat,
+        lng: entry.lng
+      };
+      
+      passagePoints.push(point);
+      
+      // Créer un marqueur pour ce point
       const marker = new google.maps.Marker({
         position: { lat: entry.lat, lng: entry.lng },
         map: map,
         title: `${entry.name} (${entry.time})`,
         icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+      });
+
+      // Ajouter une infowindow pour afficher les détails
+      const infowindow = new google.maps.InfoWindow({
+        content: `<strong>${entry.name}</strong><br>Heure: ${entry.time}`
+      });
+
+      marker.addListener('click', () => {
+        infowindow.open(map, marker);
       });
 
       markers.push(marker);
@@ -119,10 +167,10 @@
       map.setCenter({ lat: entry.lat, lng: entry.lng });
     }
 
-    // Fonction pour récupérer les arrêts depuis Google Sheets
-    async function getBusData(sheetName) {
+    // Fonction pour récupérer les points de passage depuis Google Sheets
+    async function getPassageData() {
       try {
-        const response = await fetch(`${SCRIPT_URL}?sheet=${sheetName}`);
+        const response = await fetch(`${SCRIPT_URL}?sheet=Passages`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -130,45 +178,56 @@
         const data = await response.json();
         console.log("Données récupérées:", data);
         
-        // Vider les arrêts existants
-        stops.length = 0;
+        // Vider les points existants
+        passagePoints.length = 0;
+        bnhPoint = null;
         
-        // Remplir le tableau 'stops' avec les données récupérées
+        // Traiter les données récupérées
         data.forEach(entry => {
-          stops.push({
-            name: entry.name,
-            lat: parseFloat(entry.lat),
-            lng: parseFloat(entry.lng),
-            passed: false // Par défaut, l'arrêt n'est pas encore passé
-          });
+          // Vérifier si c'est le point BNH
+          if (entry.name === "bnh") {
+            bnhPoint = {
+              name: entry.name,
+              lat: parseFloat(entry.lat),
+              lng: parseFloat(entry.lng),
+              time: entry.time || ""
+            };
+          } else {
+            // C'est un point de passage normal
+            passagePoints.push({
+              name: entry.name,
+              time: entry.time,
+              lat: parseFloat(entry.lat),
+              lng: parseFloat(entry.lng)
+            });
+          }
         });
 
-        // Afficher tous les arrêts sur la carte
-        displayStops();
+        // Afficher tous les points sur la carte
+        displayAllPoints();
       } catch (error) {
         console.error("Erreur lors de la récupération des données:", error);
-        alert("Impossible de charger les arrêts de bus. Veuillez rafraîchir la page.");
+        alert("Impossible de charger les données. Veuillez rafraîchir la page.");
       }
     }
 
-    // Fonction pour afficher les arrêts sur la carte
-    function displayStops() {
+    // Fonction pour afficher tous les points sur la carte
+    function displayAllPoints() {
       // Effacer les marqueurs existants
       markers.forEach(marker => marker.setMap(null));
       markers.length = 0;
       
-      // Ajouter un marqueur pour chaque arrêt
-      stops.forEach((stop, idx) => {
+      // Ajouter un marqueur pour chaque point de passage
+      passagePoints.forEach(point => {
         const marker = new google.maps.Marker({
-          position: { lat: stop.lat, lng: stop.lng },
+          position: { lat: point.lat, lng: point.lng },
           map: map,
-          title: stop.name,
-          icon: stop.passed ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+          title: point.name,
+          icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
         });
 
-        // Ajouter une infowindow pour afficher le nom de l'arrêt
         const infowindow = new google.maps.InfoWindow({
-          content: `<strong>${stop.name}</strong>`
+          content: `<strong>${point.name}</strong><br>Heure: ${point.time}`
         });
 
         marker.addListener('click', () => {
@@ -178,16 +237,116 @@
         markers.push(marker);
       });
 
-      // Si des arrêts sont disponibles, centrer la carte sur le premier arrêt
-      if (stops.length > 0) {
-        map.setCenter({ lat: stops[0].lat, lng: stops[0].lng });
+      // Ajouter le marqueur BNH s'il existe
+      if (bnhPoint) {
+        const marker = new google.maps.Marker({
+          position: { lat: bnhPoint.lat, lng: bnhPoint.lng },
+          map: map,
+          title: "BNH (Point d'arrivée)",
+          icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+        });
+
+        const infowindow = new google.maps.InfoWindow({
+          content: `<strong>BNH (Point d'arrivée)</strong>`
+        });
+
+        marker.addListener('click', () => {
+          infowindow.open(map, marker);
+        });
+
+        markers.push(marker);
+      }
+
+      // Centrer la carte en fonction des points disponibles
+      if (passagePoints.length > 0) {
+        map.setCenter({ lat: passagePoints[0].lat, lng: passagePoints[0].lng });
+      } else if (bnhPoint) {
+        map.setCenter({ lat: bnhPoint.lat, lng: bnhPoint.lng });
       }
     }
 
+    // Calculer l'estimation du temps d'arrivée à BNH
+    function calculateEstimation(currentPosition) {
+      if (!bnhPoint) return;
+      
+      // Calculer la distance en km entre la position actuelle et BNH
+      const distance = calculateDistance(
+        currentPosition.lat, 
+        currentPosition.lng, 
+        bnhPoint.lat, 
+        bnhPoint.lng
+      );
+      
+      // Calculer le temps estimé en minutes (distance / vitesse * 60)
+      const timeInMinutes = Math.round((distance / BUS_SPEED) * 60);
+      
+      // Obtenir l'heure actuelle et ajouter le temps estimé
+      const now = new Date();
+      const estimatedArrival = new Date(now.getTime() + timeInMinutes * 60000);
+      
+      // Formater l'heure d'arrivée estimée
+      const estimatedTimeStr = estimatedArrival.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      
+      // Afficher l'estimation
+      document.getElementById('estimationTime').innerHTML = `
+        ${estimatedTimeStr} (dans environ ${timeInMinutes} minutes)<br>
+        Distance: ${distance.toFixed(1)} km
+      `;
+      document.getElementById('estimationInfo').style.display = 'block';
+      
+      // Tracer le trajet sur la carte
+      drawRoute(currentPosition, bnhPoint);
+    }
+
+    // Fonction pour calculer la distance entre deux points (formule de Haversine)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c; // Distance en km
+      return distance;
+    }
+
+    // Tracer le trajet sur la carte
+    function drawRoute(start, end) {
+      // Créer un objet DirectionsService
+      const directionsService = new google.maps.DirectionsService();
+      
+      // Créer un objet DirectionsRenderer pour afficher l'itinéraire
+      const directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: true // Ne pas afficher les marqueurs par défaut
+      });
+      
+      // Paramètres de la requête
+      const request = {
+        origin: new google.maps.LatLng(start.lat, start.lng),
+        destination: new google.maps.LatLng(end.lat, end.lng),
+        travelMode: google.maps.TravelMode.DRIVING
+      };
+      
+      // Envoyer la requête pour obtenir l'itinéraire
+      directionsService.route(request, function(result, status) {
+        if (status == google.maps.DirectionsStatus.OK) {
+          // Afficher l'itinéraire sur la carte
+          directionsRenderer.setDirections(result);
+        } else {
+          console.error("Impossible de calculer l'itinéraire:", status);
+        }
+      });
+    }
+
     // Attacher l'événement de clic au bouton
-    document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
+    });
   </script>
 
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&callback=initMap" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&libraries=places&callback=initMap" async defer></script>
 </body>
 </html>
