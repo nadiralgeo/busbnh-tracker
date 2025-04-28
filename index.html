@@ -32,13 +32,18 @@
     button:hover {
       background-color: #45a049;
     }
+    .message { font-size: 18px; margin-top: 20px; color: #007bff; }
   </style>
 </head>
 <body>
   <h1>Suivi du Passage du Bus</h1>
-  
+
   <!-- Formulaire pour les coordonnées -->
   <form id="busForm">
+    <div class="row">
+      <label for="name">Votre nom :</label>
+      <input type="text" id="name" required />
+    </div>
     <div class="row">
       <label for="latitude">Latitude :</label>
       <input type="number" step="any" id="latitude" required />
@@ -47,36 +52,57 @@
       <label for="longitude">Longitude :</label>
       <input type="number" step="any" id="longitude" required />
     </div>
-    <button type="submit">Ajouter le passage</button>
+    <button type="submit">Signaler le passage</button>
   </form>
 
   <div id="map"></div>
+  <div class="message" id="message"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     // Initialisation de la carte avec OpenStreetMap
-    const map = L.map('map').setView([36.7735, 3.0582], 12); // Centrer sur Alger
+    const map = L.map('map').setView([36.7735, 3.0582], 12); // Centré sur Alger
 
     // Ajouter les tuiles OpenStreetMap à la carte
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
+    // Tableau pour stocker les données des passagers
+    const passengers = [];
+
     // Fonction pour ajouter un marqueur pour un passage de bus
     function addBusMarker(lat, lng) {
       const busMarker = L.marker([lat, lng]).addTo(map);
-      busMarker.bindPopup(`<b>Passage de bus à ces coordonnées</b>`).openPopup();
+      busMarker.bindPopup(`<b>Passage du bus ici</b>`).openPopup();
+    }
+
+    // Fonction pour afficher un message spécifique à chaque passager
+    function displayMessage(name) {
+      const messageElement = document.getElementById('message');
+      if (passengers.length === 1) {
+        messageElement.textContent = `Le bus est arrivé pour ${name}. Vous êtes le premier à signaler le passage.`;
+      } else {
+        messageElement.textContent = `Le bus est en route. Temps estimé pour arriver à vous : 5 minutes.`;
+      }
     }
 
     // Gestion du formulaire pour ajouter un passage de bus
     document.getElementById('busForm').addEventListener('submit', function(event) {
       event.preventDefault();
       
+      const name = document.getElementById('name').value;
       const latitude = parseFloat(document.getElementById('latitude').value);
       const longitude = parseFloat(document.getElementById('longitude').value);
 
-      // Ajouter le marqueur pour ce passage
+      // Ajouter le passage du passager dans le tableau
+      passengers.push({ name, latitude, longitude });
+
+      // Ajouter le marqueur pour ce passage sur la carte
       addBusMarker(latitude, longitude);
+
+      // Afficher le message pour ce passager
+      displayMessage(name);
 
       // Réinitialiser le formulaire
       document.getElementById('busForm').reset();
