@@ -15,70 +15,106 @@
 <body>
   <h1>Suivi du Passage du Bus</h1>
   <div id="map"></div>
+  <!-- Ajout d'un bouton pour signaler le passage du bus -->
+<button onclick="handleBusPassed()">Le bus est passé chez moi</button>
+
+<script>
+  // Fonction pour envoyer le signal de passage à Google Sheets
+  async function handleBusPassed() {
+    const name = prompt("Quel est votre prénom ?");
+    if (!name) return;
+
+    // Obtenez la position actuelle
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const entry = {
+          name: name,
+          time: new Date().toLocaleTimeString(),
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+
+        // Envoyer les données à Google Sheets via l'API de script
+        await fetch('URL_DE_TON_SCRIPT_GOOGLE_APPS', {
+          method: 'POST',
+          body: JSON.stringify(entry),
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        // Mettre à jour la carte (ajouter le marqueur)
+        updateMap(entry);
+      });
+    }
+  }
+
+  // Fonction pour mettre à jour la carte avec les nouvelles données
+  function updateMap(entry) {
+    const marker = new google.maps.Marker({
+      position: { lat: entry.lat, lng: entry.lng },
+      map: map,
+      title: entry.name,
+      icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', // Marqueur vert
+    });
+
+    markers.push(marker);
+  }
+</script>
+
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&callback=initMap" async defer></script>
   <script>
-    let map;
-    let markers = [];
-    const stops = [
-      // Exemple : Ajoutez les 12 arrêts habituels ici
-      { name: "Arrêt 1", lat: 36.7735, lng: 3.0582, passed: false },
-      { name: "Arrêt 2", lat: 36.7745, lng: 3.0602, passed: false },
-      { name: "Arrêt 3", lat: 36.7755, lng: 3.0582, passed: false },
-      { name: "Arrêt 4", lat: 36.7765, lng: 3.0602, passed: false },
-      { name: "Arrêt 5", lat: 36.7775, lng: 3.0582, passed: false },
-      { name: "Arrêt 6", lat: 36.7785, lng: 3.0602, passed: false },
-      { name: "Arrêt 7", lat: 36.7795, lng: 3.0582, passed: false },
-      { name: "Arrêt 8", lat: 36.7805, lng: 3.0602, passed: false },
-      { name: "Arrêt 9", lat: 36.7815, lng: 3.0582, passed: false },
-      { name: "Arrêt A", lat: 36.7825, lng: 3.0602, passed: false },
-      { name: "Arrêt B", lat: 36.7835, lng: 3.0582, passed: false },
-      { name: "Arrêt C", lat: 36.71611, lng: 3.201667, passed: false },
-      // Ajoutez les autres arrêts ici...
-    ];
+  let map;
+  let markers = [];
+  const stops = [];
 
-    function initMap() {
-      // Créer la carte Google Maps
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 36.7735, lng: 3.0582 },
-        zoom: 12,
+  // Fonction pour récupérer les arrêts depuis Google Sheets
+  async function getBusData() {
+    const response = await fetch('URL_DE_TON_SCRIPT_GOOGLE_APPS');  // Remplace par l'URL du script Google Apps
+    const data = await response.json();
+    
+    // Remplir le tableau 'stops' avec les données récupérées
+    data.forEach(entry => {
+      stops.push({
+        name: entry.name,
+        lat: entry.lat,
+        lng: entry.lng,
+        passed: false // Par défaut, l'arrêt est "pas encore passé"
+      });
+    });
+
+    // Re-initialiser la carte avec les nouveaux arrêts
+    initMap();
+  }
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 36.7735, lng: 3.0582 },
+      zoom: 12,
+    });
+
+    // Ajouter un marqueur pour chaque arrêt
+    stops.forEach((stop, idx) => {
+      const marker = new google.maps.Marker({
+        position: { lat: stop.lat, lng: stop.lng },
+        map: map,
+        title: stop.name,
+        icon: stop.passed ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
       });
 
-      // Ajouter un marqueur pour chaque arrêt
-      stops.forEach((stop, idx) => {
-        const marker = new google.maps.Marker({
-          position: { lat: stop.lat, lng: stop.lng },
-          map: map,
-          title: stop.name,
-          icon: stop.passed ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-        });
+      markers.push(marker);
+    });
 
-        markers.push(marker);
-      });
+    // Estimation des horaires
+    estimateArrivalTimes();
+  }
 
-      // Optionnel : calculer l'heure estimée d'arrivée (simple approximation)
-      estimateArrivalTimes();
-    }
-
-    function estimateArrivalTimes() {
-      // Ici, on ajoute un calcul d'estimation d'heure d'arrivée simple
-      stops.forEach((stop, idx) => {
-        let travelTime = 10 * (idx + 1); // Exemple d'estimation de temps de trajet (minutes)
-        let arrivalTime = new Date();
-        arrivalTime.setMinutes(arrivalTime.getMinutes() + travelTime);
-
-        const infoWindow = new google.maps.InfoWindow({
-          content: `${stop.name}<br>Heure estimée: ${arrivalTime.toLocaleTimeString()}`,
-        });
-
-        markers[idx].addListener("click", () => {
-          infoWindow.open(map, markers[idx]);
-        });
-      });
-    }
-
-    // Initialisation de la carte lorsque le script est chargé
-    window.initMap = initMap;
-  </script>
+  // Appeler la fonction pour obtenir les données de Google Sheets au chargement de la page
+  window.onload = function() {
+    getBusData();
+  };
+</script>
+  
 </body>
 </html>
