@@ -259,6 +259,7 @@
             // Envoyer les données au serveur
             const response = await fetch(SCRIPT_URL, {
               method: 'POST',
+              mode: 'no-cors', // <<<< C'est ça qui débloque
               body: JSON.stringify({
                 action: 'addOrUpdateStop',
                 stop: entry
