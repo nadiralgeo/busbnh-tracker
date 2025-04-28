@@ -258,16 +258,22 @@
             
             // Envoyer les données au serveur
             const response = await fetch(SCRIPT_URL, {
-              method: 'POST',
-              mode: 'no-cors', // <<<< C'est ça qui débloque
-              body: JSON.stringify({
-                action: 'addOrUpdateStop',
-                stop: entry
-              }),
-              headers: {
-                'Content-Type': 'application/json',
-              }
-            });
+  method: 'POST',
+  mode: 'no-cors', // important
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    action: 'addOrUpdateStop',
+    stop: entry
+  })
+});
+
+// Pas de await response.json()
+// Pas de traitement du résultat
+
+alert("Merci ! Votre passage a été envoyé !");
+await fetchAllStops(); // Rafraîchir la carte
             
             if (result.success) {
               alert("Merci ! Votre passage a été enregistré.");
