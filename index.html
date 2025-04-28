@@ -211,91 +211,81 @@
     }
 
     // Fonction pour envoyer le signal de passage
-    async function handleBusPassed() {
-      const name = prompt("Quel est votre prénom ?");
-      if (!name) return;
+ async function handleBusPassed() {
+  const name = prompt("Quel est votre prénom ?");
+  if (!name) return;
 
-      // Obtenir la position actuelle
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          const currentPosition = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          };
-          
-          try {
-            // Vérifier si l'utilisateur est près d'un arrêt existant
-            const nearbyStop = findNearbyStop(currentPosition);
-            
-            let entry = {
-              name: name,
-              time: new Date().toLocaleTimeString(),
-              lat: currentPosition.lat,
-              lng: currentPosition.lng
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const currentPosition = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
+
+      try {
+        const nearbyStop = findNearbyStop(currentPosition);
+
+        let entry = {
+          name: name,
+          time: new Date().toLocaleTimeString(),
+          lat: currentPosition.lat,
+          lng: currentPosition.lng
+        };
+
+        if (nearbyStop) {
+          if (confirm(`Vous êtes proche de l'arrêt "${nearbyStop.name}". Voulez-vous mettre à jour l'heure de passage pour cet arrêt?`)) {
+            entry = {
+              ...nearbyStop,
+              time: new Date().toLocaleTimeString()
             };
-            
-            // Si on est près d'un arrêt existant, mettre à jour juste l'heure
-            if (nearbyStop) {
-              if (confirm(`Vous êtes proche de l'arrêt "${nearbyStop.name}". Voulez-vous mettre à jour l'heure de passage pour cet arrêt?`)) {
-                entry = {
-                  ...nearbyStop,
-                  time: new Date().toLocaleTimeString()
-                };
-              }
-            }
-            
-            // Ajouter un marqueur pour la position actuelle
-            const marker = new google.maps.Marker({
-              position: currentPosition,
-              map: map,
-              title: `${name} - ${entry.time}`,
-              icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-            });
-            markers.push(marker);
-            
-            // Calculer et afficher l'estimation
-            calculateEstimation(currentPosition);
-            
-            // Envoyer les données au serveur
-            const response = await fetch(SCRIPT_URL, {
-  method: 'POST',
-  mode: 'no-cors', // important
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    action: 'addOrUpdateStop',
-    stop: entry
-  })
-});
-
-// Pas de await response.json()
-// Pas de traitement du résultat
-
-alert("Merci ! Votre passage a été envoyé !");
-await fetchAllStops(); // Rafraîchir la carte
-            
-            if (result.success) {
-              alert("Merci ! Votre passage a été enregistré.");
-              // Rafraîchir les données
-              fetchAllStops();
-            } else {
-              alert("Erreur lors de l'enregistrement: " + result.error);
-            }
-            
-          } catch (error) {
-            console.error("Erreur:", error);
-            alert("Une erreur s'est produite. Veuillez réessayer.");
           }
-          
-        }, (error) => {
-          console.error("Erreur de géolocalisation:", error);
-          alert("Impossible d'obtenir votre position. Veuillez vérifier vos paramètres de localisation.");
+        }
+
+        const marker = new google.maps.Marker({
+          position: currentPosition,
+          map: map,
+          title: `${name} - ${entry.time}`,
+          icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
         });
-      } else {
-        alert("La géolocalisation n'est pas prise en charge par votre navigateur.");
+        markers.push(marker);
+
+        calculateEstimation(currentPosition);
+
+        // ✨ NOUVEAU FETCH propre sans 'no-cors'
+        const formData = new URLSearchParams();
+        formData.append('action', 'addOrUpdateStop');
+        formData.append('stop', JSON.stringify(entry));
+
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: formData.toString()
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert("Merci ! Votre passage a été enregistré.");
+          await fetchAllStops();
+        } else {
+          alert("Erreur lors de l'enregistrement : " + result.error);
+        }
+
+      } catch (error) {
+        console.error("Erreur:", error);
+        alert("Une erreur s'est produite. Veuillez réessayer.");
       }
-    }
+
+    }, (error) => {
+      console.error("Erreur de géolocalisation:", error);
+      alert("Impossible d'obtenir votre position. Veuillez vérifier vos paramètres de localisation.");
+    });
+  } else {
+    alert("La géolocalisation n'est pas prise en charge par votre navigateur.");
+  }
+}
     
     // Chercher si l'utilisateur est près d'un arrêt existant (dans un rayon de 100m)
     function findNearbyStop(position) {
