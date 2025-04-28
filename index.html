@@ -37,7 +37,7 @@
           };
 
           // Envoyer les données à Google Sheets via l'API de script
-          await fetch('https://script.google.com/macros/s/AKfycbzj7hE8mlz_j6IvbZqSAKI8uUt0FFw4GA0y73bZddYJdWxyVRo7tqlI_NEH8twjrQn_/exec?sheet=Passages', {
+          await fetch('https://script.google.com/macros/s/AKfycbxp9uq_n2iOcP0G0JI-HzB020T4o4B1eCIhJYrEkFzWOAtgPvtM7t74sZ63YSfcp-hF/exec', {
             method: 'POST',
             body: JSON.stringify(entry),
             headers: {
@@ -65,7 +65,7 @@
 
     // Fonction pour récupérer les arrêts depuis Google Sheets
     async function getBusData(sheetName) {
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbzj7hE8mlz_j6IvbZqSAKI8uUt0FFw4GA0y73bZddYJdWxyVRo7tqlI_NEH8twjrQn_/exec?sheet=${sheetName}`);
+      const response = await fetch(`https://script.google.com/macros/s/AKfycbxp9uq_n2iOcP0G0JI-HzB020T4o4B1eCIhJYrEkFzWOAtgPvtM7t74sZ63YSfcp-hF/exec?sheet=${sheetName}`);
       const data = await response.json();
       
       // Remplir le tableau 'stops' avec les données récupérées
@@ -104,9 +104,20 @@
       estimateArrivalTimes();
     }
 
+    // Estimer les horaires d'arrivée pour chaque arrêt
+    function estimateArrivalTimes() {
+      // Logique pour estimer l'heure d'arrivée
+      // Par exemple, calculer un temps d'attente pour chaque arrêt
+      stops.forEach(stop => {
+        if (!stop.passed) {
+          // Ajouter la logique de calcul d'horaires estimés ici
+        }
+      });
+    }
+
     // Appeler la fonction pour obtenir les données de Google Sheets au chargement de la page
     window.onload = function() {
-      getBusData('Passages'); // Remplace 'Passages' par 'ArretsHabituels' pour afficher les arrêts habituels
+      getBusData('ArretsHabituels'); // Remplace 'ArretsHabituels' par le nom de la feuille des arrêts habituels
     };
   </script>
 
