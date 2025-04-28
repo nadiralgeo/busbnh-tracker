@@ -19,6 +19,10 @@
   <button onclick="handleBusPassed()">Le bus est passé chez moi</button>
 
   <script>
+    let map;
+    let markers = [];
+    let stops = [];
+
     // Fonction pour envoyer le signal de passage à Google Sheets
     async function handleBusPassed() {
       const name = prompt("Quel est votre prénom ?");
@@ -59,6 +63,18 @@
       });
 
       markers.push(marker);
+
+      // Mettre à jour l'état de l'arrêt (passé)
+      stops.forEach((stop, idx) => {
+        if (stop.lat === entry.lat && stop.lng === entry.lng) {
+          stop.passed = true;
+          // Mise à jour du marqueur de l'arrêt pour indiquer qu'il a été passé
+          marker.setIcon('http://maps.google.com/mapfiles/ms/icons/green-dot.png');
+        }
+      });
+
+      // Estimation des horaires d'arrivée
+      estimateArrivalTimes();
     }
 
     // Fonction pour récupérer les arrêts depuis Google Sheets
