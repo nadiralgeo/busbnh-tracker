@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -16,105 +16,124 @@
   <h1>Suivi du Passage du Bus</h1>
   <div id="map"></div>
   <!-- Ajout d'un bouton pour signaler le passage du bus -->
-<button onclick="handleBusPassed()">Le bus est passé chez moi</button>
+  <button onclick="handleBusPassed()">Le bus est passé chez moi</button>
 
-<script>
-  // Fonction pour envoyer le signal de passage à Google Sheets
-  async function handleBusPassed() {
-    const name = prompt("Quel est votre prénom ?");
-    if (!name) return;
-
-    // Obtenez la position actuelle
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const entry = {
-          name: name,
-          time: new Date().toLocaleTimeString(),
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        };
-
-        // Envoyer les données à Google Sheets via l'API de script
-        await fetch('https://script.google.com/macros/s/AKfycby5eN1MeB2nwSKMXiGgz8oIUEu4tdzJ4wjDw8O6kwXp3iBGdL1p2H-mseQO0WgUZvca/exec', {
-          method: 'POST',
-          body: JSON.stringify(entry),
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-
-        // Mettre à jour la carte (ajouter le marqueur)
-        updateMap(entry);
-      });
-    }
-  }
-
-  // Fonction pour mettre à jour la carte avec les nouvelles données
-  function updateMap(entry) {
-    const marker = new google.maps.Marker({
-      position: { lat: entry.lat, lng: entry.lng },
-      map: map,
-      title: entry.name,
-      icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', // Marqueur vert
-    });
-
-    markers.push(marker);
-  }
-</script>
-
-
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&callback=initMap" async defer></script>
   <script>
-  let map;
-  let markers = [];
-  const stops = [];
+    // Fonction pour envoyer le signal de passage à Google Sheets
+    async function handleBusPassed() {
+      const name = prompt("Quel est votre prénom ?");
+      if (!name) return;
 
-  // Fonction pour récupérer les arrêts depuis Google Sheets
-  async function getBusData() {
-    const response = await fetch('URL_DE_TON_SCRIPT_GOOGLE_APPS');  // Remplace par l'URL du script Google Apps
-    const data = await response.json();
-    
-    // Remplir le tableau 'stops' avec les données récupérées
-    data.forEach(entry => {
-      stops.push({
-        name: entry.name,
-        lat: entry.lat,
-        lng: entry.lng,
-        passed: false // Par défaut, l'arrêt est "pas encore passé"
-      });
-    });
+      // Obtenez la position actuelle
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const entry = {
+            name: name,
+            time: new Date().toLocaleTimeString(),
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
 
-    // Re-initialiser la carte avec les nouveaux arrêts
-    initMap();
-  }
+          // Envoyer les données à Google Sheets via l'API de script
+          await fetch('https://script.google.com/macros/s/AKfycby5eN1MeB2nwSKMXiGgz8oIUEu4tdzJ4wjDw8O6kwXp3iBGdL1p2H-mseQO0WgUZvca/exec', {
+            method: 'POST',
+            body: JSON.stringify(entry),
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
 
-  function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 36.7735, lng: 3.0582 },
-      zoom: 12,
-    });
+          // Mettre à jour la carte (ajouter le marqueur)
+          updateMap(entry);
+        });
+      }
+    }
 
-    // Ajouter un marqueur pour chaque arrêt
-    stops.forEach((stop, idx) => {
+    // Fonction pour mettre à jour la carte avec les nouvelles données
+    function updateMap(entry) {
       const marker = new google.maps.Marker({
-        position: { lat: stop.lat, lng: stop.lng },
+        position: { lat: entry.lat, lng: entry.lng },
         map: map,
-        title: stop.name,
-        icon: stop.passed ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+        title: entry.name,
+        icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', // Marqueur vert
       });
 
       markers.push(marker);
-    });
+    }
 
-    // Estimation des horaires
-    estimateArrivalTimes();
-  }
+    // Fonction pour récupérer les arrêts depuis Google Sheets
+    async function getBusData() {
+      const response = await fetch('https://script.google.com/macros/s/AKfycby5eN1MeB2nwSKMXiGgz8oIUEu4tdzJ4wjDw8O6kwXp3iBGdL1p2H-mseQO0WgUZvca/exec');  // Remplacer par l'URL de ton script Google Apps
+      const data = await response.json();
+      
+      // Remplir le tableau 'stops' avec les données récupérées
+      data.forEach(entry => {
+        stops.push({
+          name: entry.name,
+          lat: entry.lat,
+          lng: entry.lng,
+          passed: false // Par défaut, l'arrêt est "pas encore passé"
+        });
+      });
 
-  // Appeler la fonction pour obtenir les données de Google Sheets au chargement de la page
-  window.onload = function() {
-    getBusData();
-  };
-</script>
-  
+      // Re-initialiser la carte avec les nouveaux arrêts
+      initMap();
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 36.7735, lng: 3.0582 },  // Coordonnées initiales
+        zoom: 12,
+      });
+
+      // Ajouter un marqueur pour chaque arrêt
+      stops.forEach((stop, idx) => {
+        const marker = new google.maps.Marker({
+          position: { lat: stop.lat, lng: stop.lng },
+          map: map,
+          title: stop.name,
+          icon: stop.passed ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+        });
+
+        markers.push(marker);
+      });
+
+      // Estimation des horaires d'arrivée
+      estimateArrivalTimes();
+    }
+
+    // Fonction pour estimer l'heure d'arrivée au prochain arrêt (basé sur la distance et la vitesse)
+    function estimateArrivalTimes() {
+      const speed = 20; // Estimation de la vitesse du bus en km/h
+      for (let i = 0; i < stops.length - 1; i++) {
+        const start = stops[i];
+        const end = stops[i + 1];
+        const distance = calculateDistance(start.lat, start.lng, end.lat, end.lng); // Calcul de la distance entre les arrêts
+        const timeToNextStop = (distance / speed) * 60; // Estimation en minutes
+        
+        console.log(`Arrêt ${start.name} -> ${end.name}: ${timeToNextStop.toFixed(2)} minutes`);
+      }
+    }
+
+    // Fonction pour calculer la distance entre deux points géographiques (en km)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance en km
+    }
+
+    // Appeler la fonction pour obtenir les données de Google Sheets au chargement de la page
+    window.onload = function() {
+      getBusData();
+    };
+  </script>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&callback=initMap" async defer></script>
+
 </body>
 </html>
