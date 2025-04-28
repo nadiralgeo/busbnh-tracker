@@ -1,9 +1,10 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Suivi du Passage du Bus</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -51,37 +52,6 @@
       font-size: 18px;
       color: #d32f2f;
     }
-    #stopsContainer {
-      margin-top: 20px;
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-    }
-    .stop-item {
-      padding: 8px;
-      margin-bottom: 5px;
-      background-color: #f8f9fa;
-      border-radius: 4px;
-      display: flex;
-      justify-content: space-between;
-    }
-    .loader {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 2s linear infinite;
-      display: inline-block;
-      margin-left: 10px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
   </style>
 </head>
 <body>
@@ -95,48 +65,32 @@
     <div id="estimationTime" class="estimation-time"></div>
   </div>
 
-  <div id="stopsContainer">
-    <h3>Points d'arrêt enregistrés</h3>
-    <div id="stopsList"></div>
-  </div>
-
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     let map;
-    let directionsRenderer;
     let markers = [];
-    let userStopInfo = null;
     let allStops = [];
-    const BNH_POSITION = { lat: 36.716111, lng: 3.201667 };
+    const BNH_POSITION = [36.716111, 3.201667]; // Position BNH (Point d'arrivée)
     const BUS_SPEED = 30; // Vitesse moyenne du bus en km/h
-    
-    // URL du script déployé (à remplacer par votre URL de déploiement)
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNpgUKKvDzyVTzmcqWKqMNF-wgEtb3vZZPP3YRV9eNaNKXf8f0oIt3C2RutLFBsGnZ/exec';
 
     // Fonction pour initialiser la carte
     function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 36.7735, lng: 3.0582 }, // Centre d'Alger
-        zoom: 12,
-      });
-      
-      // Préparer le renderer pour les directions
-      directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: true
-      });
-      
-      // Ajouter le marqueur BNH
-      new google.maps.Marker({
-        position: BNH_POSITION,
-        map: map,
-        title: "BNH (Point d'arrivée)",
-        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-      });
-      
+      map = L.map('map').setView([36.7735, 3.0582], 12); // Centre d'Alger
+
+      // Ajouter le fond de carte
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      // Ajouter un marqueur pour BNH
+      L.marker(BNH_POSITION).addTo(map)
+        .bindPopup("BNH (Point d'arrivée)")
+        .openPopup();
+
       // Attacher l'événement de clic aux boutons
       document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
       document.getElementById('refreshBtn').addEventListener('click', fetchAllStops);
-      
+
       // Charger initialement tous les arrêts
       fetchAllStops();
     }
@@ -144,274 +98,139 @@
     // Fonction pour chercher tous les arrêts depuis Google Sheets
     async function fetchAllStops() {
       try {
-        document.getElementById('stopsList').innerHTML = '<div class="loader"></div> Chargement des arrêts...';
-        
-        const response = await fetch(`${SCRIPT_URL}?action=getStops`);
+        const response = await fetch('https://script.google.com/macros/s/AKfycbyNpgUKKvDzyVTzmcqWKqMNF-wgEtb3vZZPP3YRV9eNaNKXf8f0oIt3C2RutLFBsGnZ/exec?action=getStops');
         const data = await response.json();
-        
-        // Nettoyer la carte des marqueurs précédents
+
+        // Nettoyer les anciens marqueurs
         clearMarkers();
-        
+
         if (data && data.stops) {
           allStops = data.stops;
           
-          // Afficher les arrêts sur la carte et dans la liste
+          // Afficher les arrêts sur la carte
           displayStops(allStops);
         }
       } catch (error) {
         console.error("Erreur lors de la récupération des arrêts:", error);
-        document.getElementById('stopsList').innerHTML = 'Erreur lors du chargement des arrêts.';
       }
     }
-    
-    // Fonction pour afficher les arrêts sur la carte et dans la liste
+
+    // Fonction pour afficher les arrêts sur la carte
     function displayStops(stops) {
-      const stopsListEl = document.getElementById('stopsList');
-      stopsListEl.innerHTML = '';
-      
-      if (stops.length === 0) {
-        stopsListEl.innerHTML = 'Aucun arrêt enregistré.';
-        return;
-      }
-      
-      stops.forEach((stop, index) => {
-        // Ajouter un marqueur sur la carte
-        const position = { lat: parseFloat(stop.lat), lng: parseFloat(stop.lng) };
-        const marker = new google.maps.Marker({
-          position: position,
-          map: map,
-          title: `${stop.name} - ${stop.time}`,
-          icon: stop.name.toLowerCase() === 'bnh' ? 
-            'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' : 
-            'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-        });
+      stops.forEach(stop => {
+        const position = [parseFloat(stop.lat), parseFloat(stop.lng)];
         
+        const marker = L.marker(position).addTo(map);
         markers.push(marker);
-        
-        // Ajouter à la liste HTML
-        const stopItem = document.createElement('div');
-        stopItem.className = 'stop-item';
-        stopItem.innerHTML = `
-          <div><strong>${stop.name}</strong> - ${stop.time}</div>
-          <div>Lat: ${stop.lat.toFixed(6)}, Lng: ${stop.lng.toFixed(6)}</div>
-        `;
-        stopsListEl.appendChild(stopItem);
+
+        // Ajouter un popup avec le nom et l'heure
+        marker.bindPopup(`${stop.name} - ${stop.time}`);
       });
-      
-      // Tracer le trajet complet si on a au moins un arrêt plus BNH
+
+      // Tracer un itinéraire complet si des arrêts existent
       if (stops.length > 0) {
         drawFullRoute(stops);
       }
     }
-    
-    // Nettoyer tous les marqueurs de la carte
+
+    // Nettoyer tous les marqueurs
     function clearMarkers() {
-      markers.forEach(marker => marker.setMap(null));
+      markers.forEach(marker => map.removeLayer(marker));
       markers = [];
     }
 
     // Fonction pour envoyer le signal de passage
- async function handleBusPassed() {
-  const name = prompt("Quel est votre prénom ?");
-  if (!name) return;
+    async function handleBusPassed() {
+      const name = prompt("Quel est votre prénom ?");
+      if (!name) return;
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const currentPosition = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
-      };
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const currentPosition = [pos.coords.latitude, pos.coords.longitude];
 
-      try {
-        const nearbyStop = findNearbyStop(currentPosition);
+          try {
+            const nearbyStop = findNearbyStop(currentPosition);
 
-        let entry = {
-          name: name,
-          time: new Date().toLocaleTimeString(),
-          lat: currentPosition.lat,
-          lng: currentPosition.lng
-        };
-
-        if (nearbyStop) {
-          if (confirm(`Vous êtes proche de l'arrêt "${nearbyStop.name}". Voulez-vous mettre à jour l'heure de passage pour cet arrêt?`)) {
-            entry = {
-              ...nearbyStop,
-              time: new Date().toLocaleTimeString()
+            let entry = {
+              name: name,
+              time: new Date().toLocaleTimeString(),
+              lat: currentPosition[0],
+              lng: currentPosition[1]
             };
+
+            if (nearbyStop) {
+              if (confirm(`Vous êtes proche de l'arrêt "${nearbyStop.name}". Voulez-vous mettre à jour l'heure de passage pour cet arrêt?`)) {
+                entry = {
+                  ...nearbyStop,
+                  time: new Date().toLocaleTimeString()
+                };
+              }
+            }
+
+            L.marker(currentPosition).addTo(map)
+              .bindPopup(`${name} - ${entry.time}`);
+
+            calculateEstimation(currentPosition);
+            await fetchAllStops();
+          } catch (error) {
+            console.error("Erreur:", error);
+            alert("Une erreur s'est produite. Veuillez réessayer.");
           }
-        }
-
-        const marker = new google.maps.Marker({
-          position: currentPosition,
-          map: map,
-          title: `${name} - ${entry.time}`,
-          icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
         });
-        markers.push(marker);
-
-        calculateEstimation(currentPosition);
-
-        // ✨ NOUVEAU FETCH propre sans 'no-cors'
-        const formData = new URLSearchParams();
-        formData.append('action', 'addOrUpdateStop');
-        formData.append('stop', JSON.stringify(entry));
-
-        const response = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: formData.toString()
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          alert("Merci ! Votre passage a été enregistré.");
-          await fetchAllStops();
-        } else {
-          alert("Erreur lors de l'enregistrement : " + result.error);
-        }
-
-      } catch (error) {
-        console.error("Erreur:", error);
-        alert("Une erreur s'est produite. Veuillez réessayer.");
       }
+    }
 
-    }, (error) => {
-      console.error("Erreur de géolocalisation:", error);
-      alert("Impossible d'obtenir votre position. Veuillez vérifier vos paramètres de localisation.");
-    });
-  } else {
-    alert("La géolocalisation n'est pas prise en charge par votre navigateur.");
-  }
-}
-    
-    // Chercher si l'utilisateur est près d'un arrêt existant (dans un rayon de 100m)
+    // Chercher si l'utilisateur est près d'un arrêt existant
     function findNearbyStop(position) {
       const MAX_DISTANCE = 0.1; // 100 mètres en km
       
       for (const stop of allStops) {
-        const stopPos = { lat: parseFloat(stop.lat), lng: parseFloat(stop.lng) };
-        const distance = calculateDistance(
-          position.lat, 
-          position.lng, 
-          stopPos.lat, 
-          stopPos.lng
-        );
-        
+        const stopPos = [parseFloat(stop.lat), parseFloat(stop.lng)];
+        const distance = calculateDistance(position[0], position[1], stopPos[0], stopPos[1]);
+
         if (distance <= MAX_DISTANCE) {
           return stop;
         }
       }
-      
       return null;
     }
 
-    // Calculer l'estimation du temps d'arrivée à BNH
+    // Calculer l'estimation du temps d'arrivée
     function calculateEstimation(currentPosition) {
-      // Calculer la distance en km entre la position actuelle et BNH
-      const distance = calculateDistance(
-        currentPosition.lat, 
-        currentPosition.lng, 
-        BNH_POSITION.lat, 
-        BNH_POSITION.lng
-      );
-      
-      // Calculer le temps estimé en minutes (distance / vitesse * 60)
+      const distance = calculateDistance(currentPosition[0], currentPosition[1], BNH_POSITION[0], BNH_POSITION[1]);
       const timeInMinutes = Math.round((distance / BUS_SPEED) * 60);
-      
-      // Obtenir l'heure actuelle et ajouter le temps estimé
       const now = new Date();
       const estimatedArrival = new Date(now.getTime() + timeInMinutes * 60000);
-      
-      // Formater l'heure d'arrivée estimée
       const estimatedTimeStr = estimatedArrival.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      
-      // Afficher l'estimation
+
       document.getElementById('estimationTime').innerHTML = `
         ${estimatedTimeStr} (dans environ ${timeInMinutes} minutes)<br>
         Distance: ${distance.toFixed(1)} km
       `;
       document.getElementById('estimationInfo').style.display = 'block';
-      
-      // Tracer le trajet sur la carte
-      drawRoute(currentPosition, BNH_POSITION);
     }
 
-    // Fonction pour calculer la distance entre deux points (formule de Haversine)
+    // Calculer la distance entre deux points
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371; // Rayon de la Terre en km
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
       const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c; // Distance en km
-      return distance;
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
     }
 
-    // Tracer le trajet direct sur la carte
-    function drawRoute(start, end) {
-      // Créer un objet DirectionsService
-      const directionsService = new google.maps.DirectionsService();
-      
-      // Paramètres de la requête
-      const request = {
-        origin: new google.maps.LatLng(start.lat, start.lng),
-        destination: new google.maps.LatLng(end.lat, end.lng),
-        travelMode: google.maps.TravelMode.DRIVING
-      };
-      
-      // Envoyer la requête pour obtenir l'itinéraire
-      directionsService.route(request, function(result, status) {
-        if (status == google.maps.DirectionsStatus.OK) {
-          // Afficher l'itinéraire sur la carte
-          directionsRenderer.setDirections(result);
-        } else {
-          console.error("Impossible de calculer l'itinéraire:", status);
-        }
-      });
-    }
-    
-    // Tracer le trajet complet avec tous les arrêts
+    // Dessiner un itinéraire complet à partir des arrêts
     function drawFullRoute(stops) {
-      if (stops.length < 1) return;
-      
-      // Créer un objet DirectionsService
-      const directionsService = new google.maps.DirectionsService();
-      
-      // Préparer les waypoints
-      const waypoints = stops.filter(stop => stop.name.toLowerCase() !== 'bnh').map(stop => {
-        return {
-          location: new google.maps.LatLng(parseFloat(stop.lat), parseFloat(stop.lng)),
-          stopover: true
-        };
-      });
-      
-      // Paramètres de la requête
-      const request = {
-        origin: new google.maps.LatLng(parseFloat(stops[0].lat), parseFloat(stops[0].lng)),
-        destination: new google.maps.LatLng(BNH_POSITION.lat, BNH_POSITION.lng),
-        waypoints: waypoints,
-        optimizeWaypoints: false,
-        travelMode: google.maps.TravelMode.DRIVING
-      };
-      
-      // Envoyer la requête pour obtenir l'itinéraire
-      directionsService.route(request, function(result, status) {
-        if (status == google.maps.DirectionsStatus.OK) {
-          // Afficher l'itinéraire sur la carte
-          directionsRenderer.setDirections(result);
-        } else {
-          console.error("Impossible de calculer l'itinéraire complet:", status);
-        }
-      });
+      const latlngs = stops.map(stop => [parseFloat(stop.lat), parseFloat(stop.lng)]);
+      L.polyline(latlngs, {color: 'blue'}).addTo(map);
     }
-  </script>
 
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&libraries=places&callback=initMap" async defer></script>
+    // Initialiser la carte à la première ouverture
+    window.onload = initMap;
+  </script>
 </body>
 </html>
