@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BusBNH Tracker</title>
+</head>
+<body style="font-family: sans-serif; padding: 20px;">
+  <h1>BusBNH - Suivi du passage</h1>
+  <button id="sendLocation" style="font-size: 18px; padding: 10px 20px;">Le bus est passé chez moi</button>
+
+  <script>
+    document.getElementById('sendLocation').addEventListener('click', async () => {
+      if (!navigator.geolocation) {
+        alert("La géolocalisation n'est pas supportée.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const newEntry = {
+          name: prompt("Entrez votre prénom :"),
+          time: new Date().toLocaleTimeString(),
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+
+        try {
+          await fetch(
+            "https://script.google.com/macros/s/AKfycbxR8HDLAYnCwOTucrCG74VrQNiTTUG5fViaRQ6U2WMxeg-c2nyy7ZXM7h-3ig1y6X4Y/exec",
+            {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newEntry),
+            }
+          );
+          alert("Localisation envoyée !");
+        } catch (error) {
+          alert("Erreur d'envoi : " + error.message);
+        }
+      }, (error) => {
+        alert("Erreur de localisation : " + error.message);
+      });
+    });
+  </script>
+</body>
+</html>
+
