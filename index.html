@@ -63,13 +63,27 @@
       }, error => alert("Impossible d'obtenir votre position."));
     }
 
-    function sendPosition(name, position) {
-      fetch('https://script.google.com/macros/s/AKfycbzujjBcMmDWKT8yC4VvhibfGaf4L9hMdJGB94QD3juISwHvPaekNKPYd48IxdixIciC/exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, time: new Date().toLocaleTimeString(), lat: position[0], lng: position[1] })
-      }).then(() => fetchStops()).catch(error => console.error("Erreur:", error));
-    }
+  async function sendPosition(name, position) {
+  const payload = {
+    name: name,
+    time: new Date().toLocaleTimeString(),
+    lat: position[0],
+    lng: position[1]
+  };
+
+  console.log("Envoi des données :", JSON.stringify(payload));
+
+  try {
+    await fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    fetchAllStops(); // Rafraîchir la carte
+  } catch (error) {
+    console.error("Erreur :", error);
+    alert("Échec de l'envoi des données !");
+  }
 
     function calculateEstimation(stops) {
       let closestStop = stops.reduce((prev, curr) => {
