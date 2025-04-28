@@ -3,53 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suivi du Bus</title>
+  <title>Suivi du Passage du Bus</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    h1 { color: #333; text-align: center; }
+    #map { height: 500px; width: 100%; border: 1px solid #ccc; margin-bottom: 20px; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+    .row label {
+      margin-right: 10px;
+    }
+    .row input {
+      padding: 5px;
+      width: 150px;
+    }
+    button {
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .message { font-size: 18px; margin-top: 20px; color: #007bff; }
+  </style>
+</head>
+<body>
+  <h1>Suivi du Passage du Bus</h1>
+
+  <!-- Formulaire pour les coordonnées -->
+  <form id="busForm">
+    <div class="row">
+      <label for="name">Votre nom :</label>
+      <input type="text" id="name" required />
+    </div>
+    <div class="row">
+      <label for="latitude">Latitude :</label>
+      <input type="number" step="any" id="latitude" required />
+    </div>
+    <div class="row">
+      <label for="longitude">Longitude :</label>
+      <input type="number" step="any" id="longitude" required />
+    </div>
+    <button type="submit">Signaler le passage</button>
+  </form>
+
+  <div id="map"></div>
+  <div class="message" id="message"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    let userPosition = { lat: 36.75, lng: 3.05 }; // Position par défaut (ex. Alger)
+    // Initialisation de la carte avec OpenStreetMap
+    const map = L.map('map').setView([36.7735, 3.0582], 12); // Centré sur Alger
 
-    function markBusArrival() {
-      // On envoie la position actuelle du passager au serveur
-      const stopData = {
-        name: "Passager1",  // Nom du passager (ici un exemple)
-        time: new Date().toLocaleTimeString(),  // Heure actuelle
-        lat: userPosition.lat,
-        lng: userPosition.lng
-      };
+    // Ajouter les tuiles OpenStreetMap à la carte
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-      fetch('https://script.google.com/macros/s/YOUR_SCRIPT_URL/exec', {
-        method: 'POST',
-        body: new URLSearchParams({ 
-          action: 'markArrival', 
-          stop: JSON.stringify(stopData)
-        }),
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert("Bus marqué comme arrivé!");
-        } else {
-          alert("Erreur lors de l'enregistrement de la position.");
-        }
-      });
+    // Tableau pour stocker les données des passagers
+    const passengers = [];
+
+    // Fonction pour ajouter un marqueur pour un passage de bus
+    function addBusMarker(lat, lng) {
+      const busMarker = L.marker([lat, lng]).addTo(map);
+      busMarker.bindPopup(`<b>Passage du bus ici</b>`).openPopup();
     }
 
-    function getUserLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-          userPosition = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-        });
+    // Fonction pour afficher un message spécifique à chaque passager
+    function displayMessage(name) {
+      const messageElement = document.getElementById('message');
+      if (passengers.length === 1) {
+        messageElement.textContent = `Le bus est arrivé pour ${name}. Vous êtes le premier à signaler le passage.`;
       } else {
-        alert("La géolocalisation n'est pas supportée.");
+        messageElement.textContent = `Le bus est en route. Temps estimé pour arriver à vous : 5 minutes.`;
       }
     }
 
-    window.onload = getUserLocation;
+    // Gestion du formulaire pour ajouter un passage de bus
+    document.getElementById('busForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      const name = document.getElementById('name').value;
+      const latitude = parseFloat(document.getElementById('latitude').value);
+      const longitude = parseFloat(document.getElementById('longitude').value);
+
+      // Ajouter le passage du passager dans le tableau
+      passengers.push({ name, latitude, longitude });
+
+      // Ajouter le marqueur pour ce passage sur la carte
+      addBusMarker(latitude, longitude);
+
+      // Afficher le message pour ce passager
+      displayMessage(name);
+
+      // Réinitialiser le formulaire
+      document.getElementById('busForm').reset();
+    });
   </script>
-</head>
-<body>
-  <button onclick="markBusArrival()">Bus Arrivé</button>
 </body>
 </html>
