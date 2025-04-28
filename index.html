@@ -65,13 +65,12 @@
 
   <script>
     let map;
-    const markers = []; // Liste pour stocker les marqueurs
-    const passagePoints = []; // Liste pour stocker les points de passage
-    let bnhPoint = null; // Point d'arrivée BNH
+    let directionsRenderer;
+    const BNH_POSITION = { lat: 36.716111, lng: 3.201667 };
     const BUS_SPEED = 30; // Vitesse moyenne du bus en km/h
     
     // URL du script déployé (à remplacer par votre URL de déploiement)
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwGwqo5O0hazrqU7x3e8soM--xvnpWuSgbRkRMKjvjA2Dzkr5bSEIdM958frNZivR1P/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxp9uq_n2iOcP0G0JI-HzB020T4o4B1eCIhJYrEkFzWOAtgPvtM7t74sZ63YSfcp-hF/exec';
 
     // Fonction pour initialiser la carte
     function initMap() {
@@ -80,50 +79,51 @@
         zoom: 12,
       });
       
-      // Charger les points de passage après l'initialisation de la carte
-      getPassageData();
+      // Préparer le renderer pour les directions
+      directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: true
+      });
+      
+      // Ajouter le marqueur BNH
+      new google.maps.Marker({
+        position: BNH_POSITION,
+        map: map,
+        title: "BNH (Point d'arrivée)",
+        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+      });
+      
+      // Attacher l'événement de clic au bouton
+      document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
     }
 
-    // Fonction pour envoyer le signal de passage à Google Sheets
-    async function handleBusPassed() {
+    // Fonction pour envoyer le signal de passage
+    function handleBusPassed() {
       const name = prompt("Quel est votre prénom ?");
       if (!name) return;
 
       // Obtenir la position actuelle
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          const entry = {
-            name: name,
-            time: new Date().toLocaleTimeString(),
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const currentPosition = {
             lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
+            lng: pos.coords.longitude
           };
-
-          try {
-            // Envoyer les données à Google Sheets via l'API de script
-            const response = await fetch(SCRIPT_URL, {
-              method: 'POST',
-              body: JSON.stringify(entry),
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              mode: 'no-cors' // Important pour les requêtes cross-origin
-            });
-            
-            // Ajouter un nouveau marqueur sur la carte
-            addPassagePoint(entry);
-            
-            // Calculer l'estimation vers BNH
-            if (bnhPoint) {
-              calculateEstimation(entry);
-            }
-            
-            // Feedback à l'utilisateur
-            alert("Merci ! Votre passage a été enregistré.");
-          } catch (error) {
-            console.error("Erreur lors de l'envoi des données:", error);
-            alert("Une erreur s'est produite. Veuillez réessayer.");
-          }
+          
+          // Ajouter un marqueur pour la position actuelle
+          new google.maps.Marker({
+            position: currentPosition,
+            map: map,
+            title: name,
+            icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+          });
+          
+          // Calculer et afficher l'estimation
+          calculateEstimation(currentPosition);
+          
+          // Envoyer les données au serveur en arrière-plan
+          sendDataToServer(name, currentPosition);
+          
         }, (error) => {
           console.error("Erreur de géolocalisation:", error);
           alert("Impossible d'obtenir votre position. Veuillez vérifier vos paramètres de localisation.");
@@ -132,149 +132,35 @@
         alert("La géolocalisation n'est pas prise en charge par votre navigateur.");
       }
     }
-
-    // Fonction pour ajouter un point de passage
-    function addPassagePoint(entry) {
-      const point = {
-        name: entry.name,
-        time: entry.time,
-        lat: entry.lat,
-        lng: entry.lng
+    
+    // Envoyer les données au serveur
+    function sendDataToServer(name, position) {
+      const entry = {
+        name: name,
+        time: new Date().toLocaleTimeString(),
+        lat: position.lat,
+        lng: position.lng
       };
       
-      passagePoints.push(point);
-      
-      // Créer un marqueur pour ce point
-      const marker = new google.maps.Marker({
-        position: { lat: entry.lat, lng: entry.lng },
-        map: map,
-        title: `${entry.name} (${entry.time})`,
-        icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-      });
-
-      // Ajouter une infowindow pour afficher les détails
-      const infowindow = new google.maps.InfoWindow({
-        content: `<strong>${entry.name}</strong><br>Heure: ${entry.time}`
-      });
-
-      marker.addListener('click', () => {
-        infowindow.open(map, marker);
-      });
-
-      markers.push(marker);
-      
-      // Centrer la carte sur le nouveau marqueur
-      map.setCenter({ lat: entry.lat, lng: entry.lng });
-    }
-
-    // Fonction pour récupérer les points de passage depuis Google Sheets
-    async function getPassageData() {
-      try {
-        const response = await fetch(`${SCRIPT_URL}?sheet=Passages`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(entry),
+        headers: {
+          'Content-Type': 'application/json',
         }
-        
-        const data = await response.json();
-        console.log("Données récupérées:", data);
-        
-        // Vider les points existants
-        passagePoints.length = 0;
-        bnhPoint = null;
-        
-        // Traiter les données récupérées
-        data.forEach(entry => {
-          // Vérifier si c'est le point BNH
-          if (entry.name === "bnh") {
-            bnhPoint = {
-              name: entry.name,
-              lat: parseFloat(entry.lat),
-              lng: parseFloat(entry.lng),
-              time: entry.time || ""
-            };
-          } else {
-            // C'est un point de passage normal
-            passagePoints.push({
-              name: entry.name,
-              time: entry.time,
-              lat: parseFloat(entry.lat),
-              lng: parseFloat(entry.lng)
-            });
-          }
-        });
-
-        // Afficher tous les points sur la carte
-        displayAllPoints();
-      } catch (error) {
-        console.error("Erreur lors de la récupération des données:", error);
-        alert("Impossible de charger les données. Veuillez rafraîchir la page.");
-      }
-    }
-
-    // Fonction pour afficher tous les points sur la carte
-    function displayAllPoints() {
-      // Effacer les marqueurs existants
-      markers.forEach(marker => marker.setMap(null));
-      markers.length = 0;
-      
-      // Ajouter un marqueur pour chaque point de passage
-      passagePoints.forEach(point => {
-        const marker = new google.maps.Marker({
-          position: { lat: point.lat, lng: point.lng },
-          map: map,
-          title: point.name,
-          icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-        });
-
-        const infowindow = new google.maps.InfoWindow({
-          content: `<strong>${point.name}</strong><br>Heure: ${point.time}`
-        });
-
-        marker.addListener('click', () => {
-          infowindow.open(map, marker);
-        });
-
-        markers.push(marker);
+      }).catch(error => {
+        console.error("Erreur lors de l'envoi des données:", error);
       });
-
-      // Ajouter le marqueur BNH s'il existe
-      if (bnhPoint) {
-        const marker = new google.maps.Marker({
-          position: { lat: bnhPoint.lat, lng: bnhPoint.lng },
-          map: map,
-          title: "BNH (Point d'arrivée)",
-          icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-        });
-
-        const infowindow = new google.maps.InfoWindow({
-          content: `<strong>BNH (Point d'arrivée)</strong>`
-        });
-
-        marker.addListener('click', () => {
-          infowindow.open(map, marker);
-        });
-
-        markers.push(marker);
-      }
-
-      // Centrer la carte en fonction des points disponibles
-      if (passagePoints.length > 0) {
-        map.setCenter({ lat: passagePoints[0].lat, lng: passagePoints[0].lng });
-      } else if (bnhPoint) {
-        map.setCenter({ lat: bnhPoint.lat, lng: bnhPoint.lng });
-      }
     }
 
     // Calculer l'estimation du temps d'arrivée à BNH
     function calculateEstimation(currentPosition) {
-      if (!bnhPoint) return;
-      
       // Calculer la distance en km entre la position actuelle et BNH
       const distance = calculateDistance(
         currentPosition.lat, 
         currentPosition.lng, 
-        bnhPoint.lat, 
-        bnhPoint.lng
+        BNH_POSITION.lat, 
+        BNH_POSITION.lng
       );
       
       // Calculer le temps estimé en minutes (distance / vitesse * 60)
@@ -295,7 +181,7 @@
       document.getElementById('estimationInfo').style.display = 'block';
       
       // Tracer le trajet sur la carte
-      drawRoute(currentPosition, bnhPoint);
+      drawRoute(currentPosition, BNH_POSITION);
     }
 
     // Fonction pour calculer la distance entre deux points (formule de Haversine)
@@ -317,12 +203,6 @@
       // Créer un objet DirectionsService
       const directionsService = new google.maps.DirectionsService();
       
-      // Créer un objet DirectionsRenderer pour afficher l'itinéraire
-      const directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: true // Ne pas afficher les marqueurs par défaut
-      });
-      
       // Paramètres de la requête
       const request = {
         origin: new google.maps.LatLng(start.lat, start.lng),
@@ -340,11 +220,6 @@
         }
       });
     }
-
-    // Attacher l'événement de clic au bouton
-    document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
-    });
   </script>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7jDT32wCQUq7d_PR9X4L6ioXgomQcBNQ&libraries=places&callback=initMap" async defer></script>
