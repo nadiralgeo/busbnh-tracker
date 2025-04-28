@@ -35,7 +35,7 @@
         };
 
         // Envoyer les données à Google Sheets via l'API de script
-        await fetch('URL_DE_TON_SCRIPT_GOOGLE_APPS', {
+        await fetch('https://script.google.com/macros/s/AKfycby5eN1MeB2nwSKMXiGgz8oIUEu4tdzJ4wjDw8O6kwXp3iBGdL1p2H-mseQO0WgUZvca/exec', {
           method: 'POST',
           body: JSON.stringify(entry),
           headers: {
