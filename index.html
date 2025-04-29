@@ -1,391 +1,260 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
+  <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suivi du Passage du Bus</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <title>Test API Bus Tracking</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-    h1 { text-align: center; color: #333; }
-    #map { height: 500px; width: 100%; border: 1px solid #ccc; margin-bottom: 20px; }
-    button { display: block; margin: 10px auto; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #45a049; }
-    #estimationInfo { margin-top: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
-    .route-info { margin-top: 20px; padding: 15px; background: #f0f8ff; border: 1px solid #add8e6; border-radius: 4px; }
-    .stop-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    .stop-table th, .stop-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    .stop-table tr:nth-child(even) { background-color: #f2f2f2; }
-    .stop-table th { background-color: #4CAF50; color: white; }
-    .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin: 20px auto; display: none; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #4285f4;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #555;
+      margin-top: 0;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      background-color: #fafafa;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, button {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #357ae8;
+    }
+    button.secondary {
+      background-color: #5cb85c;
+    }
+    button.secondary:hover {
+      background-color: #4cae4c;
+    }
+    #mapContainer {
+      height: 300px;
+      width: 100%;
+      margin-top: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    #response {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      min-height: 100px;
+      max-height: 300px;
+      overflow: auto;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .stops-list {
+      margin-top: 20px;
+      max-height: 300px;
+      overflow: auto;
+    }
+    .stop-item {
+      padding: 10px;
+      margin-bottom: 5px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      background-color: white;
+    }
+    .stop-name {
+      font-weight: bold;
+      color: #4285f4;
+    }
+    .stop-time {
+      color: #d14836;
+      margin-left: 5px;
+    }
+    .buttons-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .buttons-row button {
+      flex: 1;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+      border: 1px solid #d6e9c6;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+      border: 1px solid #ebccd1;
+    }
+    .loading {
+      text-align: center;
+      display: none;
+      padding: 10px;
+    }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 2s linear infinite;
+      display: inline-block;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .stop-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    .stop-table th, .stop-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    .stop-table tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    .stop-table th {
+      background-color: #4285f4;
+      color: white;
+    }
   </style>
 </head>
 <body>
-  <h1>Suivi du Passage du Bus</h1>
-  <div id="map"></div>
-  <div class="loader" id="loader"></div>
-  <button id="busPassedBtn">Le bus est passé chez moi</button>
-  <button id="refreshBtn">Rafraîchir les données</button>
-  
-  <div id="estimationInfo">
-    <div class="estimation-title">Estimation d'arrivée à BNH:</div>
-    <div id="estimationTime" class="estimation-time">Chargement des données...</div>
+  <div class="container">
+    <h1>Test de l'API Bus Tracking</h1>
+    
+    <div class="section">
+      <h2>Ajouter un arrêt</h2>
+      <form id="addStopForm">
+        <label for="name">Nom de l'arrêt:</label>
+        <input type="text" id="name" name="name" required>
+        
+        <label for="time">Heure (HH:MM:SS):</label>
+        <input type="text" id="time" name="time" required>
+        
+        <label for="lat">Latitude:</label>
+        <input type="number" id="lat" name="lat" step="0.000001" value="36.723456" required>
+        
+        <label for="lng">Longitude:</label>
+        <input type="number" id="lng" name="lng" step="0.000001" value="3.198765" required>
+        
+        <div class="buttons-row">
+          <button type="button" onclick="addStop()">Ajouter l'arrêt</button>
+          <button type="button" class="secondary" onclick="getCurrentPosition()">Utiliser ma position</button>
+        </div>
+      </form>
+      
+      <div id="statusAdd" class="status"></div>
+    </div>
+    
+    <div class="section">
+      <h2>Récupérer les arrêts</h2>
+      <button type="button" onclick="getStops()">Obtenir tous les arrêts d'aujourd'hui</button>
+      <div id="statusGet" class="status"></div>
+      
+      <div id="loading" class="loading">
+        <div class="loader"></div> Chargement des données...
+      </div>
+      
+      <div id="stopsContainer" class="stops-list" style="display: none;">
+        <h3>Arrêts enregistrés aujourd'hui</h3>
+        <div id="currentDate" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
+        <table class="stop-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Heure</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
+            </tr>
+          </thead>
+          <tbody id="stopsTableBody">
+            <!-- Les arrêts seront ajoutés ici dynamiquement -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div id="response"></div>
+    </div>
+    
+    <div class="section">
+      <h2>Actions de maintenance</h2>
+      <div class="buttons-row">
+        <button type="button" onclick="testAddStop()">Tester l'ajout</button>
+        <button type="button" onclick="recreerFeuillePassages()">Recréer feuille + test</button>
+      </div>
+      <div id="statusMaintenance" class="status"></div>
+    </div>
   </div>
 
-  <div class="route-info">
-    <h3>Arrêts enregistrés</h3>
-    <p>Cette liste montre tous les arrêts signalés par les utilisateurs aujourd'hui</p>
-    <div id="currentDate" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
-    <table class="stop-table">
-      <thead>
-        <tr>
-          <th>Nom</th>
-          <th>Heure de passage</th>
-          <th>Distance à BNH</th>
-          <th>Localisation</th>
-        </tr>
-      </thead>
-      <tbody id="stopsTableBody">
-        <!-- Les arrêts seront ajoutés ici dynamiquement -->
-      </tbody>
-    </table>
-  </div>
-
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    // Configuration de base
+    // URL du script Google Apps Script
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXKKVdDtbcjYhCQJTfaYTJNHojF3o9bX3gDc89RlR9TKiqGYAnxyokJ3DJKMefzDkA/exec';
-    const BNH_POSITION = [36.716111, 3.201667]; 
-    const BUS_SPEED = 30; // km/h
     
-    // Initialisation de la carte
-    let map = L.map('map').setView([36.7735, 3.0582], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    // Mettre à jour l'heure actuelle au chargement de la page
+    window.onload = function() {
+      document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
+      displayCurrentDate();
+      // Charger les arrêts automatiquement au démarrage
+      getStops();
+    };
     
-    // Ajouter un marqueur pour BNH (destination finale)
-    const bnhMarker = L.marker(BNH_POSITION).addTo(map)
-      .bindPopup('<strong>BNH</strong> - Destination finale')
-      .openPopup();
-    
-    // Variables globales
-    let busRoute = null;
-    let markers = [];
-    let stops = [];
-    
-    // Initialisation des événements
-    document.getElementById('busPassedBtn').addEventListener('click', handleBusPassed);
-    document.getElementById('refreshBtn').addEventListener('click', fetchStops);
-
-    // Fonction pour afficher/masquer le loader
-    function toggleLoader(show) {
-      document.getElementById('loader').style.display = show ? 'block' : 'none';
-    }
-
-    // Fonction pour récupérer les arrêts depuis Google Sheets
-    function fetchStops() {
-      toggleLoader(true);
-      fetch(`${SCRIPT_URL}?action=getStops`)
-        .then(response => response.json())
-        .then(data => {
-          clearMarkers();
-          stops = data.stops || [];
-          
-          // Tracer les marqueurs sur la carte
-          stops.forEach(stop => {
-            const marker = L.marker([parseFloat(stop.lat), parseFloat(stop.lng)]).addTo(map)
-              .bindPopup(`<b>${stop.name}</b><br>Dernier passage: ${stop.time}`);
-            markers.push(marker);
-          });
-          
-          // Mettre à jour le tableau des arrêts
-          updateStopsTable();
-          
-          // Calculer l'estimation si des arrêts existent
-          if (stops.length > 0) {
-            calculateEstimation(stops);
-          } else {
-            document.getElementById('estimationTime').innerHTML = 'Aucun arrêt enregistré';
-          }
-          
-          // Tracer la route si plusieurs points existent
-          if (stops.length > 1) {
-            drawBusRoute();
-          }
-          
-          toggleLoader(false);
-        })
-        .catch(error => {
-          console.error("Erreur lors de la récupération des arrêts:", error);
-          document.getElementById('estimationTime').innerHTML = 'Erreur lors de la récupération des données';
-          toggleLoader(false);
-        });
-    }
-
-    // Fonction pour gérer le clic sur "Le bus est passé"
-    function handleBusPassed() {
-      const name = prompt("Votre prénom ?");
-      if (!name) return;
-
-      toggleLoader(true);
-      
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          const coordinates = [position.coords.latitude, position.coords.longitude];
-          sendPosition(name, coordinates);
-        }, 
-        error => {
-          alert("Impossible d'obtenir votre position. Erreur: " + error.message);
-          toggleLoader(false);
-        }, 
-        { enableHighAccuracy: true }
-      );
-    }
-
-    // Fonction pour envoyer la position à Google Sheets
-    function sendPosition(name, position) {
-      const time = new Date().toLocaleTimeString();
-      const payload = {
-        name: name,
-        time: time,
-        lat: position[0],
-        lng: position[1]
-      };
-
-      console.log("Envoi des données:", JSON.stringify(payload));
-
-      // Créer l'URL avec les paramètres pour une requête GET (contournement pour Google Apps Script)
-      const url = `${SCRIPT_URL}?name=${encodeURIComponent(name)}&time=${encodeURIComponent(time)}&lat=${position[0]}&lng=${position[1]}&action=addStop`;
-      
-      // Utiliser une iframe cachée pour envoyer la requête (méthode compatible avec CORS)
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-      
-      iframe.onload = function() {
-        document.body.removeChild(iframe);
-        
-        // Ajouter un nouveau marqueur pour ce passage sans attendre la réponse du serveur
-        const newMarker = L.marker(position).addTo(map)
-          .bindPopup(`<strong>${name}</strong><br>Passage signalé à ${time}`).openPopup();
-        markers.push(newMarker);
-        
-        // Attendre un peu avant de rafraîchir les données
-        setTimeout(fetchStops, 2000);
-        
-        toggleLoader(false);
-      };
-      
-      iframe.onerror = function() {
-        document.body.removeChild(iframe);
-        console.error("Erreur lors de l'envoi des données");
-        alert("Échec de l'envoi des données au serveur! Veuillez réessayer.");
-        toggleLoader(false);
-      };
-      
-      // Définir la source de l'iframe pour envoyer la requête
-      iframe.src = url;
-    }
-
-    // Fonction pour calculer l'estimation d'arrivée à BNH
-    function calculateEstimation(stops) {
-      // Trouver l'arrêt avec l'horodatage le plus récent (dernier passage du bus signalé)
-      if (stops.length === 0) return;
-      
-      let lastStop = stops[0];
-      let latestTime = new Date('1970-01-01');
-      
-      stops.forEach(stop => {
-        const stopTime = parseTime(stop.time);
-        if (stopTime > latestTime) {
-          latestTime = stopTime;
-          lastStop = stop;
-        }
-      });
-      
-      // Calculer la distance entre le dernier arrêt et BNH
-      const distance = calculateDistance(
-        parseFloat(lastStop.lat), 
-        parseFloat(lastStop.lng), 
-        BNH_POSITION[0], 
-        BNH_POSITION[1]
-      );
-      
-      // Calculer le temps estimé (distance / vitesse)
-      const estimatedMinutes = Math.round((distance / BUS_SPEED) * 60);
-      const estimatedTime = new Date(latestTime.getTime() + estimatedMinutes * 60000);
-      
-      // Afficher l'estimation
-      document.getElementById('estimationTime').innerHTML = 
-        `<strong>Dernier passage signalé:</strong> ${lastStop.name} à ${lastStop.time}<br>` +
-        `<strong>Arrivée estimée à BNH:</strong> ${estimatedTime.toLocaleTimeString()} (dans ~${estimatedMinutes} min)<br>` +
-        `<strong>Distance restante:</strong> ${distance.toFixed(2)} km`;
-    }
-
-    // Fonction pour convertir une chaîne d'heure en objet Date
-    function parseTime(timeStr) {
-      const today = new Date();
-      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
-      
-      const result = new Date(today);
-      result.setHours(hours, minutes, seconds);
-      
-      // Si l'heure résultante est dans le futur, on considère qu'il s'agit d'hier
-      if (result > today && hours >= 12) {
-        result.setDate(result.getDate() - 1);
-      }
-      
-      return result;
-    }
-
-    // Fonction pour mettre à jour le tableau des arrêts
-    function updateStopsTable() {
-      const tableBody = document.getElementById('stopsTableBody');
-      tableBody.innerHTML = '';
-      
-      if (stops.length === 0) {
-        const row = tableBody.insertRow();
-        const cell = row.insertCell(0);
-        cell.colSpan = 3;
-        cell.textContent = "Aucun arrêt enregistré pour le moment";
-        return;
-      }
-      
-      // Vérifier d'abord si les données sont chargées
-      console.log("Nombre d'arrêts à afficher:", stops.length);
-      
-      // Trier les arrêts par distance à BNH
-      const sortedStops = [...stops].sort((a, b) => {
-        const distA = calculateDistance(parseFloat(a.lat), parseFloat(a.lng), BNH_POSITION[0], BNH_POSITION[1]);
-        const distB = calculateDistance(parseFloat(b.lat), parseFloat(b.lng), BNH_POSITION[0], BNH_POSITION[1]);
-        return distB - distA; // De la plus grande distance à la plus petite
-      });
-      
-      // Ajouter chaque arrêt au tableau
-      sortedStops.forEach(stop => {
-        const distance = calculateDistance(
-          parseFloat(stop.lat), 
-          parseFloat(stop.lng), 
-          BNH_POSITION[0], 
-          BNH_POSITION[1]
-        );
-        
-        const row = tableBody.insertRow();
-        row.insertCell(0).textContent = stop.name;
-        row.insertCell(1).textContent = stop.time;
-        
-        // Afficher la distance avec une couleur selon la proximité
-        const distanceCell = row.insertCell(2);
-        distanceCell.textContent = `${distance.toFixed(2)} km`;
-        
-        if (distance < 2) {
-          distanceCell.style.color = 'green';
-          distanceCell.style.fontWeight = 'bold';
-        } else if (distance < 5) {
-          distanceCell.style.color = 'orange';
-        }
-        
-        // Ajouter une cellule pour l'adresse (sera remplie par geocoding)
-        const addressCell = row.insertCell(3);
-        addressCell.textContent = "Chargement...";
-        addressCell.id = `address-${stop.lat}-${stop.lng}`;
-        
-        // Convertir les coordonnées en adresse
-        getAddressFromCoordinates(stop.lat, stop.lng, addressCell.id);
-      });
-    }
-    
-    // Fonction pour obtenir l'adresse à partir des coordonnées
-    function getAddressFromCoordinates(lat, lng, elementId) {
-      const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-      
-      fetch(nominatimUrl)
-        .then(response => response.json())
-        .then(data => {
-          // Extraire les informations pertinentes de l'adresse
-          let locationName = "";
-          
-          if (data.address) {
-            // Construire l'adresse selon les informations disponibles
-            const address = data.address;
-            
-            if (address.suburb) locationName += address.suburb + ", ";
-            else if (address.neighbourhood) locationName += address.neighbourhood + ", ";
-            else if (address.residential) locationName += address.residential + ", ";
-            
-            if (address.city_district) locationName += address.city_district + ", ";
-            if (address.city) locationName += address.city;
-            else if (address.town) locationName += address.town;
-            else if (address.village) locationName += address.village;
-            
-            // Si aucune info détaillée n'est disponible, utiliser le nom du display_name
-            if (!locationName && data.display_name) {
-              locationName = data.display_name.split(',').slice(0, 2).join(',');
-            }
-          }
-          
-          // Si toujours pas d'info, mettre un message par défaut
-          if (!locationName) {
-            locationName = "Adresse inconnue";
-          }
-          
-          // Mettre à jour l'élément HTML
-          const element = document.getElementById(elementId);
-          if (element) {
-            element.textContent = locationName;
-          }
-        })
-        .catch(error => {
-          console.error("Erreur lors de la récupération de l'adresse:", error);
-          const element = document.getElementById(elementId);
-          if (element) {
-            element.textContent = "Adresse non disponible";
-          }
-        });
-    }
-
-    // Fonction pour tracer la route du bus
-    function drawBusRoute() {
-      if (busRoute) {
-        map.removeLayer(busRoute);
-      }
-      
-      // Trier les arrêts par distance à BNH (du plus éloigné au plus proche)
-      const sortedStops = [...stops].sort((a, b) => {
-        const distA = calculateDistance(parseFloat(a.lat), parseFloat(a.lng), BNH_POSITION[0], BNH_POSITION[1]);
-        const distB = calculateDistance(parseFloat(b.lat), parseFloat(b.lng), BNH_POSITION[0], BNH_POSITION[1]);
-        return distB - distA;
-      });
-      
-      // Créer un tableau de points pour la route
-      const routePoints = sortedStops.map(stop => [parseFloat(stop.lat), parseFloat(stop.lng)]);
-      routePoints.push(BNH_POSITION); // Ajouter BNH comme destination finale
-      
-      // Tracer la polyline
-      busRoute = L.polyline(routePoints, {color: 'blue', weight: 3, opacity: 0.7}).addTo(map);
-      
-      // Ajuster la vue de la carte pour voir tout le trajet
-      map.fitBounds(busRoute.getBounds(), {padding: [50, 50]});
-    }
-
-    // Fonction de calcul de distance (formule de Haversine)
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // Rayon de la Terre en km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c; // Distance en km
-    }
-
-    // Fonction pour nettoyer tous les marqueurs de la carte
-    function clearMarkers() {
-      markers.forEach(marker => map.removeLayer(marker));
-      markers = [bnhMarker]; // Garder seulement le marqueur BNH
-    }
-
     // Afficher la date du jour
     function displayCurrentDate() {
       const today = new Date();
@@ -393,11 +262,246 @@
       document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', options);
     }
     
-    // Initialisation: récupérer les données au chargement
-    window.onload = function() {
-      displayCurrentDate();
-      fetchStops();
-    };
+    // Fonction pour obtenir la position actuelle
+    function getCurrentPosition() {
+      showLoading(true);
+      showStatus('statusAdd', '', '');
+      
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            document.getElementById('lat').value = position.coords.latitude;
+            document.getElementById('lng').value = position.coords.longitude;
+            showLoading(false);
+            showStatus('statusAdd', 'success', 'Position récupérée avec succès.');
+          },
+          (error) => {
+            showLoading(false);
+            showStatus('statusAdd', 'error', 'Erreur lors de la récupération de la position: ' + error.message);
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        showLoading(false);
+        showStatus('statusAdd', 'error', 'La géolocalisation n\'est pas supportée par votre navigateur.');
+      }
+    }
+    
+    // Fonction pour ajouter un arrêt
+    function addStop() {
+      showLoading(true);
+      showStatus('statusAdd', '', '');
+      
+      const name = document.getElementById('name').value;
+      const time = document.getElementById('time').value;
+      const lat = parseFloat(document.getElementById('lat').value);
+      const lng = parseFloat(document.getElementById('lng').value);
+      
+      if (!name || !time || isNaN(lat) || isNaN(lng)) {
+        showLoading(false);
+        showStatus('statusAdd', 'error', 'Veuillez remplir tous les champs correctement.');
+        return;
+      }
+      
+      // Construction de l'URL pour la requête GET
+      const url = `${SCRIPT_URL}?action=addStop&name=${encodeURIComponent(name)}&time=${encodeURIComponent(time)}&lat=${lat}&lng=${lng}`;
+      
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          showLoading(false);
+          if (data.success) {
+            showStatus('statusAdd', 'success', 'Arrêt ajouté avec succès: ' + data.message);
+            document.getElementById('name').value = '';
+            document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
+            // Actualiser la liste des arrêts
+            getStops();
+          } else {
+            showStatus('statusAdd', 'error', 'Erreur: ' + (data.error || 'Échec de l\'ajout'));
+          }
+        })
+        .catch(error => {
+          showLoading(false);
+          showStatus('statusAdd', 'error', 'Erreur de communication avec le serveur: ' + error.message);
+        });
+    }
+    
+    // Fonction pour récupérer tous les arrêts
+    function getStops() {
+      showLoading(true);
+      showStatus('statusGet', '', '');
+      document.getElementById('stopsContainer').style.display = 'none';
+      document.getElementById('response').textContent = '';
+      
+      fetch(`${SCRIPT_URL}?action=getStops`)
+        .then(response => response.json())
+        .then(data => {
+          showLoading(false);
+          
+          // Afficher les données brutes dans la console pour le débogage
+          console.log("Données reçues:", data);
+          
+          // Formater la réponse JSON pour l'affichage
+          document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+          
+          if (data.success) {
+            if (data.stops && data.stops.length > 0) {
+              showStatus('statusGet', 'success', `${data.stops.length} arrêt(s) récupéré(s) pour aujourd'hui.`);
+              populateStopsTable(data.stops);
+              document.getElementById('stopsContainer').style.display = 'block';
+            } else {
+              showStatus('statusGet', 'success', 'Aucun arrêt enregistré pour aujourd\'hui.');
+              document.getElementById('stopsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun arrêt enregistré pour aujourd\'hui</td></tr>';
+              document.getElementById('stopsContainer').style.display = 'block';
+            }
+          } else {
+            showStatus('statusGet', 'error', 'Erreur: ' + (data.error || 'Échec de la récupération'));
+          }
+        })
+        .catch(error => {
+          showLoading(false);
+          showStatus('statusGet', 'error', 'Erreur de communication avec le serveur: ' + error.message);
+        });
+    }
+    
+    // Fonction pour peupler le tableau des arrêts
+    function populateStopsTable(stops) {
+      const tableBody = document.getElementById('stopsTableBody');
+      tableBody.innerHTML = '';
+      
+      // Trier les arrêts par heure
+      stops.sort((a, b) => {
+        return a.time.localeCompare(b.time);
+      });
+      
+      stops.forEach(stop => {
+        const row = document.createElement('tr');
+        
+        const nameCell = document.createElement('td');
+        nameCell.textContent = stop.name;
+        row.appendChild(nameCell);
+        
+        const timeCell = document.createElement('td');
+        timeCell.textContent = stop.time;
+        row.appendChild(timeCell);
+        
+        const latCell = document.createElement('td');
+        latCell.textContent = stop.lat;
+        row.appendChild(latCell);
+        
+        const lngCell = document.createElement('td');
+        lngCell.textContent = stop.lng;
+        row.appendChild(lngCell);
+        
+        tableBody.appendChild(row);
+      });
+    }
+    
+    // Fonction pour tester l'ajout d'un arrêt
+    function testAddStop() {
+      showLoading(true);
+      showStatus('statusMaintenance', '', '');
+      
+      const testData = {
+        name: "Test automatique",
+        time: new Date().toTimeString().slice(0, 8),
+        lat: 36.723456,
+        lng: 3.198765
+      };
+      
+      // Utiliser une requête GET pour l'ajout du test
+      const url = `${SCRIPT_URL}?action=addStop&name=${encodeURIComponent(testData.name)}&time=${encodeURIComponent(testData.time)}&lat=${testData.lat}&lng=${testData.lng}`;
+      
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          showLoading(false);
+          if (data.success) {
+            showStatus('statusMaintenance', 'success', 'Test réussi: ' + data.message);
+            // Actualiser la liste des arrêts
+            getStops();
+          } else {
+            showStatus('statusMaintenance', 'error', 'Échec du test: ' + (data.error || 'Erreur inconnue'));
+          }
+        })
+        .catch(error => {
+          showLoading(false);
+          showStatus('statusMaintenance', 'error', 'Erreur de communication: ' + error.message);
+        });
+    }
+    
+    // Fonction pour recréer la feuille de passages
+    function recreerFeuillePassages() {
+      if (!confirm('Êtes-vous sûr de vouloir recréer la feuille ? Cela supprimera toutes les données existantes.')) {
+        return;
+      }
+      
+      showLoading(true);
+      showStatus('statusMaintenance', '', '');
+      
+      // Exécuter la fonction depuis Apps Script via une requête JSONP
+      const scriptElement = document.createElement('script');
+      const callbackName = 'callback_' + Math.random().toString(36).substr(2, 9);
+      
+      // Créer une fonction de rappel globale
+      window[callbackName] = function(response) {
+        showLoading(false);
+        if (response && response.success) {
+          showStatus('statusMaintenance', 'success', 'Feuille recréée avec succès!');
+          // Actualiser la liste des arrêts
+          setTimeout(getStops, 1000);
+        } else {
+          showStatus('statusMaintenance', 'error', 'Échec de la recréation: ' + (response.error || 'Erreur inconnue'));
+        }
+        
+        // Supprimer la fonction de rappel et l'élément script
+        delete window[callbackName];
+        document.body.removeChild(scriptElement);
+      };
+      
+      // Construire l'URL avec un paramètre de rappel
+      scriptElement.src = `${SCRIPT_URL}?action=recreerFeuillePassages&callback=${callbackName}`;
+      document.body.appendChild(scriptElement);
+      
+      // Si après 10 secondes, nous n'avons pas de réponse, considérer comme un timeout
+      setTimeout(() => {
+        if (window[callbackName]) {
+          showLoading(false);
+          showStatus('statusMaintenance', 'error', 'Timeout: Aucune réponse du serveur après 10 secondes');
+          
+          // Nettoyer
+          delete window[callbackName];
+          if (document.body.contains(scriptElement)) {
+            document.body.removeChild(scriptElement);
+          }
+        }
+      }, 10000);
+    }
+    
+    // Fonction utilitaire pour afficher/masquer le chargement
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+    
+    // Fonction utilitaire pour afficher les statuts
+    function showStatus(elementId, type, message) {
+      const element = document.getElementById(elementId);
+      if (!message) {
+        element.style.display = 'none';
+        return;
+      }
+      
+      element.className = 'status ' + type;
+      element.textContent = message;
+      element.style.display = 'block';
+      
+      // Auto-hide success messages after 5 seconds
+      if (type === 'success') {
+        setTimeout(() => {
+          element.style.display = 'none';
+        }, 5000);
+      }
+    }
   </script>
 </body>
 </html>
