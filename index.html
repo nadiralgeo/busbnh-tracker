@@ -35,13 +35,15 @@
 
   <div class="route-info">
     <h3>Arrêts enregistrés</h3>
-    <p>Cette liste montre tous les arrêts signalés par les utilisateurs</p>
+    <p>Cette liste montre tous les arrêts signalés par les utilisateurs aujourd'hui</p>
+    <div id="currentDate" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
     <table class="stop-table">
       <thead>
         <tr>
           <th>Nom</th>
-          <th>Dernière heure de passage</th>
+          <th>Heure de passage</th>
           <th>Distance à BNH</th>
+          <th>Localisation</th>
         </tr>
       </thead>
       <tbody id="stopsTableBody">
@@ -53,7 +55,7 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     // Configuration de base
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzSZE_tXSrq_rUacVHZj6qcG5hVayxbeEaoaGRWGskEWotJ365U_Q0H-rUXLxTfaPqy/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8QmVOrzi9K5Dc4aNoyiz3WTfAOzfDSst1XK1EZ0XciKDsUFZffuuA7K2Z7l0Qu_wW/exec';
     const BNH_POSITION = [36.716111, 3.201667]; 
     const BUS_SPEED = 30; // km/h
     
@@ -249,6 +251,9 @@
         return;
       }
       
+      // Vérifier d'abord si les données sont chargées
+      console.log("Nombre d'arrêts à afficher:", stops.length);
+      
       // Trier les arrêts par distance à BNH
       const sortedStops = [...stops].sort((a, b) => {
         const distA = calculateDistance(parseFloat(a.lat), parseFloat(a.lng), BNH_POSITION[0], BNH_POSITION[1]);
@@ -256,6 +261,7 @@
         return distB - distA; // De la plus grande distance à la plus petite
       });
       
+      // Ajouter chaque arrêt au tableau
       sortedStops.forEach(stop => {
         const distance = calculateDistance(
           parseFloat(stop.lat), 
@@ -267,8 +273,75 @@
         const row = tableBody.insertRow();
         row.insertCell(0).textContent = stop.name;
         row.insertCell(1).textContent = stop.time;
-        row.insertCell(2).textContent = `${distance.toFixed(2)} km`;
+        
+        // Afficher la distance avec une couleur selon la proximité
+        const distanceCell = row.insertCell(2);
+        distanceCell.textContent = `${distance.toFixed(2)} km`;
+        
+        if (distance < 2) {
+          distanceCell.style.color = 'green';
+          distanceCell.style.fontWeight = 'bold';
+        } else if (distance < 5) {
+          distanceCell.style.color = 'orange';
+        }
+        
+        // Ajouter une cellule pour l'adresse (sera remplie par geocoding)
+        const addressCell = row.insertCell(3);
+        addressCell.textContent = "Chargement...";
+        addressCell.id = `address-${stop.lat}-${stop.lng}`;
+        
+        // Convertir les coordonnées en adresse
+        getAddressFromCoordinates(stop.lat, stop.lng, addressCell.id);
       });
+    }
+    
+    // Fonction pour obtenir l'adresse à partir des coordonnées
+    function getAddressFromCoordinates(lat, lng, elementId) {
+      const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+      
+      fetch(nominatimUrl)
+        .then(response => response.json())
+        .then(data => {
+          // Extraire les informations pertinentes de l'adresse
+          let locationName = "";
+          
+          if (data.address) {
+            // Construire l'adresse selon les informations disponibles
+            const address = data.address;
+            
+            if (address.suburb) locationName += address.suburb + ", ";
+            else if (address.neighbourhood) locationName += address.neighbourhood + ", ";
+            else if (address.residential) locationName += address.residential + ", ";
+            
+            if (address.city_district) locationName += address.city_district + ", ";
+            if (address.city) locationName += address.city;
+            else if (address.town) locationName += address.town;
+            else if (address.village) locationName += address.village;
+            
+            // Si aucune info détaillée n'est disponible, utiliser le nom du display_name
+            if (!locationName && data.display_name) {
+              locationName = data.display_name.split(',').slice(0, 2).join(',');
+            }
+          }
+          
+          // Si toujours pas d'info, mettre un message par défaut
+          if (!locationName) {
+            locationName = "Adresse inconnue";
+          }
+          
+          // Mettre à jour l'élément HTML
+          const element = document.getElementById(elementId);
+          if (element) {
+            element.textContent = locationName;
+          }
+        })
+        .catch(error => {
+          console.error("Erreur lors de la récupération de l'adresse:", error);
+          const element = document.getElementById(elementId);
+          if (element) {
+            element.textContent = "Adresse non disponible";
+          }
+        });
     }
 
     // Fonction pour tracer la route du bus
@@ -313,8 +386,18 @@
       markers = [bnhMarker]; // Garder seulement le marqueur BNH
     }
 
+    // Afficher la date du jour
+    function displayCurrentDate() {
+      const today = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', options);
+    }
+    
     // Initialisation: récupérer les données au chargement
-    window.onload = fetchStops;
+    window.onload = function() {
+      displayCurrentDate();
+      fetchStops();
+    };
   </script>
 </body>
 </html>
