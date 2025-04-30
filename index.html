@@ -1,546 +1,212 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <base target="_top">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suivi des Bus en Temps Réel</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      line-height: 1.6;
-      background-color: #f5f5f5;
-      color: #333;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #0066cc;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    h2 {
-      color: #444;
-      margin-top: 0;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 8px;
-    }
-    .section {
-      margin-bottom: 20px;
-      padding: 15px;
-      border: 1px solid #e0e0e0;
-      border-radius: 5px;
-      background-color: #fafafa;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #555;
-    }
-    input, button {
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-      font-size: 14px;
-    }
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      transition: border-color 0.3s;
-    }
-    input:focus {
-      border-color: #4285f4;
-      outline: none;
-      box-shadow: 0 0 5px rgba(66, 133, 244, 0.3);
-    }
-    button {
-      background-color: #0066cc;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      width: 100%;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #0055b3;
-    }
-    button.secondary {
-      background-color: #5cb85c;
-    }
-    button.secondary:hover {
-      background-color: #4cae4c;
-    }
-    #response {
-      margin-top: 20px;
-      padding: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      background-color: #f9f9f9;
-      min-height: 100px;
-      max-height: 300px;
-      overflow: auto;
-      font-family: monospace;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .stops-list {
-      margin-top: 20px;
-      max-height: 300px;
-      overflow: auto;
-    }
-    .stop-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .stop-table th, .stop-table td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    .stop-table tr:nth-child(even) {
-      background-color: #f2f2f2;
-    }
-    .stop-table tr:hover {
-      background-color: #e9f3ff;
-    }
-    .stop-table th {
-      background-color: #0066cc;
-      color: white;
-    }
-    .refresh-notice {
-      text-align: center;
-      margin-top: 10px;
-      font-size: 12px;
-      color: #777;
-    }
-    .offline-mode {
-      background-color: #fff3cd;
-      color: #856404;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 4px;
-      border: 1px solid #ffeeba;
-      text-align: center;
-      display: none;
-    }
-    .retry-button {
-      display: inline-block;
-      margin-left: 10px;
-      padding: 2px 8px;
-      background-color: #856404;
-      color: white;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    .retry-button:hover {
-      background-color: #654c03;
-    }
-    .time-input-container {
-      position: relative;
-    }
-    .now-button {
-      position: absolute;
-      right: 5px;
-      top: 10px;
-      padding: 1px 8px;
-      font-size: 12px;
-      background-color: #ddd;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      color: #555;
-      width: auto;
-    }
-    .now-button:hover {
-      background-color: #ccc;
-    }
-    .status {
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 4px;
-      display: none;
-    }
-    .success {
-      background-color: #dff0d8;
-      color: #3c763d;
-      border: 1px solid #d6e9c6;
-    }
-    .error {
-      background-color: #f2dede;
-      color: #a94442;
-      border: 1px solid #ebccd1;
-    }
-    .loading {
-      text-align: center;
-      display: none;
-      padding: 10px;
-    }
-    .loader {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #0066cc;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 2s linear infinite;
-      display: inline-block;
-      margin-right: 10px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page de Géolocalisation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .location-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+            border-left: 5px solid #3498db;
+        }
+        .history {
+            margin-top: 30px;
+        }
+        .history-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 10px;
+            background-color: #fadbd8;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Suivi des Bus en Temps Réel</h1>
-    
-    <div id="offlineNotice" class="offline-mode">
-      Vous êtes actuellement hors ligne. Certaines fonctionnalités peuvent ne pas fonctionner.
-      <span class="retry-button" onclick="checkConnection()">Réessayer</span>
-    </div>
-    
-    <div class="section">
-      <h2>Enregistrer un passage de bus</h2>
-      <form id="addStopForm">
-        <label for="name">Nom de l'arrêt:</label>
-        <input type="text" id="name" name="name" placeholder="Ex: Arrêt Principal" required>
+    <div class="container">
+        <h1>Registre de Passage</h1>
         
-        <label for="time">Heure (HH:MM:SS):</label>
-        <div class="time-input-container">
-          <input type="text" id="time" name="time" placeholder="Ex: 08:30:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}" required>
-          <button type="button" class="now-button" onclick="updateCurrentTime()">Maintenant</button>
+        <div id="current-location" class="location-info">
+            <p class="loading">Recherche de votre position...</p>
         </div>
         
-        <label for="lat">Latitude:</label>
-        <input type="number" id="lat" name="lat" step="0.000001" value="36.723456" required>
-        
-        <label for="lng">Longitude:</label>
-        <input type="number" id="lng" name="lng" step="0.000001" value="3.198765" required>
-        
-        <div class="buttons-row">
-          <button type="button" onclick="addStop()">Enregistrer le passage</button>
-          <button type="button" class="secondary" onclick="getCurrentPosition()">Utiliser ma position</button>
+        <div class="history">
+            <h2>Passages récents (dernières 24h)</h2>
+            <div id="history-list">
+                <p class="loading">Chargement de l'historique...</p>
+            </div>
         </div>
-      </form>
-      
-      <div id="statusAdd" class="status"></div>
     </div>
-    
-    <div class="section">
-      <h2>Passages enregistrés aujourd'hui</h2>
-      <button type="button" onclick="getStops()">Actualiser la liste des passages</button>
-      <div id="statusGet" class="status"></div>
-      
-      <div id="loading" class="loading">
-        <div class="loader"></div> Chargement des données...
-      </div>
-      
-      <div id="stopsContainer" class="stops-list" style="display: none;">
-        <h3>Liste des passages enregistrés</h3>
-        <div id="currentDate" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
-        <table class="stop-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Heure</th>
-              <th>Latitude</th>
-              <th>Longitude</th>
-            </tr>
-          </thead>
-          <tbody id="stopsTableBody"></tbody>
-        </table>
-        <div class="refresh-notice">
-          Dernière mise à jour: <span id="lastUpdate">--:--:--</span>
-          <button type="button" onclick="getStops()" style="width:auto; padding:2px 8px; margin-left:10px; font-size:12px;">Actualiser</button>
-        </div>
-      </div>
-      
-      <div id="response" style="display: none;"></div>
-    </div>
-  </div>
 
-  <script>
-    const CONFIG = {
-      SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzLApVe2anWfyIG5uJADzUQc2PKQpTZEnp0qVLOoeLvCXJwF9MyFg9LxL9gD5qOaWqT/exec',
-      REFRESH_INTERVAL: 5 * 60 * 1000,
-      MAX_RETRY_ATTEMPTS: 3,
-      RETRY_DELAY: 5000
-    };
-    
-    let isOnline = navigator.onLine;
-    let retryAttempts = 0;
-    let refreshTimer = null;
-    let lastLoadTime = null;
-    
-    window.onload = function() {
-      updateCurrentTime();
-      displayCurrentDate();
-      checkConnection();
-      window.addEventListener('online', function() {
-        isOnline = true;
-        document.getElementById('offlineNotice').style.display = 'none';
-        getStops();
-      });
-      window.addEventListener('offline', function() {
-        isOnline = false;
-        document.getElementById('offlineNotice').style.display = 'block';
-      });
-      getStops();
-      setupAutoRefresh();
-    };
-    
-    function checkConnection() {
-      isOnline = navigator.onLine;
-      document.getElementById('offlineNotice').style.display = isOnline ? 'none' : 'block';
-      if (isOnline) {
-        fetch(CONFIG.SCRIPT_URL + '?ping=true')
-          .then(response => {
-            if (!response.ok) throw new Error('Erreur de connexion à l\'API');
-            retryAttempts = 0;
-          })
-          .catch(error => {
-            console.warn('Impossible de se connecter à l\'API:', error);
-            if (retryAttempts < CONFIG.MAX_RETRY_ATTEMPTS) {
-              retryAttempts++;
-              setTimeout(checkConnection, CONFIG.RETRY_DELAY);
-            } else {
-              document.getElementById('offlineNotice').style.display = 'block';
-              document.getElementById('offlineNotice').textContent = 
-                'Impossible de se connecter au serveur. Vérifiez votre connexion ou l\'URL du script.';
-            }
-          });
-      }
-    }
-    
-    function setupAutoRefresh() {
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-      }
-      refreshTimer = setInterval(() => {
-        if (isOnline) {
-          getStops(true);
+    <script>
+        // Fonction pour obtenir la date et l'heure actuelles formatées
+        function getCurrentDateTime() {
+            const now = new Date();
+            return now.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
         }
-      }, CONFIG.REFRESH_INTERVAL);
-    }
-    
-    function updateCurrentTime() {
-      document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
-    }
-    
-    function displayCurrentDate() {
-      const today = new Date();
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', options);
-    }
-    
-    function updateLastUpdateTime() {
-      lastLoadTime = new Date();
-      const timeStr = lastLoadTime.toLocaleTimeString('fr-FR');
-      document.getElementById('lastUpdate').textContent = timeStr;
-    }
-    
-    function getCurrentPosition() {
-      showLoading(true);
-      showStatus('statusAdd', '', '');
-      
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            document.getElementById('lat').value = position.coords.latitude;
-            document.getElementById('lng').value = position.coords.longitude;
-            showLoading(false);
-            showStatus('statusAdd', 'success', 'Position récupérée avec succès.');
-          },
-          (error) => {
-            showLoading(false);
-            showStatus('statusAdd', 'error', 'Erreur lors de la récupération de la position: ' + error.message);
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      } else {
-        showLoading(false);
-        showStatus('statusAdd', 'error', 'La géolocalisation n\'est pas supportée par votre navigateur.');
-      }
-    }
-    
-    function addStop() {
-      if (!isOnline) {
-        showStatus('statusAdd', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'enregistrer le passage.');
-        return;
-      }
-      
-      showLoading(true);
-      showStatus('statusAdd', '', '');
-      
-      const name = document.getElementById('name').value;
-      const time = document.getElementById('time').value;
-      const lat = parseFloat(document.getElementById('lat').value);
-      const lng = parseFloat(document.getElementById('lng').value);
-      
-      if (!name) {
-        showLoading(false);
-        showStatus('statusAdd', 'error', 'Veuillez entrer un nom d\'arrêt.');
-        return;
-      }
-      
-      if (!time || !/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(time)) {
-        showLoading(false);
-        showStatus('statusAdd', 'error', 'Format d\'heure invalide. Utilisez HH:MM:SS (ex: 08:30:00).');
-        return;
-      }
-      
-      if (isNaN(lat) || isNaN(lng)) {
-        showLoading(false);
-        showStatus('statusAdd', 'error', 'Coordonnées invalides. Veuillez entrer des valeurs numériques.');
-        return;
-      }
-      
-      const url = `${CONFIG.SCRIPT_URL}?action=addStop&name=${encodeURIComponent(name)}&time=${encodeURIComponent(time)}&lat=${lat}&lng=${lng}`;
-      
-      fetch(url)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Erreur HTTP ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          showLoading(false);
-          if (data.success) {
-            showStatus('statusAdd', 'success', 'Passage enregistré avec succès !');
-            document.getElementById('name').value = '';
-            updateCurrentTime();
-            getStops();
-          } else {
-            showStatus('statusAdd', 'error', 'Erreur : ' + (data.error || 'Échec de l\'ajout'));
-          }
-        })
-        .catch(error => {
-          showLoading(false);
-          showStatus('statusAdd', 'error', 'Erreur de communication avec le serveur: ' + error.message);
-          checkConnection();
-        });
-    }
-    
-    function getStops(silent = false) {
-      if (!isOnline) {
-        if (!silent) {
-          showStatus('statusGet', 'error', 'Vous êtes actuellement hors ligne. Impossible de récupérer les données.');
+
+        // Fonction pour nettoyer les entrées de plus de 24 heures
+        function cleanOldEntries(entries) {
+            const now = new Date();
+            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            return entries.filter(entry => {
+                const entryDate = new Date(entry.timestamp);
+                return entryDate > twentyFourHoursAgo;
+            });
         }
-        return;
-      }
-      
-      if (!silent) {
-        showLoading(true);
-        showStatus('statusGet', '', '');
-        document.getElementById('stopsContainer').style.display = 'none';
-      }
-      
-      fetch(`${CONFIG.SCRIPT_URL}?action=getStops`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Erreur HTTP ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          showLoading(false);
-          updateLastUpdateTime();
-          if (data.success) {
-            if (data.stops && data.stops.length > 0) {
-              if (!silent) {
-                showStatus('statusGet', 'success', `${data.stops.length} passage(s) récupéré(s) pour aujourd'hui.`);
-              }
-              populateStopsTable(data.stops);
-              document.getElementById('stopsContainer').style.display = 'block';
-            } else {
-              if (!silent) {
-                showStatus('statusGet', 'success', 'Aucun passage enregistré pour aujourd\'hui.');
-              }
-              document.getElementById('stopsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun passage enregistré pour aujourd\'hui</td></tr>';
-              document.getElementById('stopsContainer').style.display = 'block';
+
+        // Fonction pour récupérer la région à partir des coordonnées
+        async function getRegionFromCoordinates(lat, lon) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=8&addressdetails=1`);
+                const data = await response.json();
+                
+                // Tenter d'extraire la région
+                const region = data.address.state || data.address.county || data.address.city || "Région inconnue";
+                return region;
+            } catch (error) {
+                console.error("Erreur lors de la recherche de la région:", error);
+                return "Région inconnue";
             }
-          } else {
-            if (!silent) {
-              showStatus('statusGet', 'error', 'Erreur : ' + (data.error || 'Échec de la récupération'));
+        }
+
+        // Fonction pour sauvegarder une nouvelle entrée
+        function saveEntry(region) {
+            // Récupérer les entrées existantes
+            let entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
+            
+            // Nettoyer les anciennes entrées
+            entries = cleanOldEntries(entries);
+            
+            // Ajouter la nouvelle entrée
+            entries.push({
+                region: region,
+                timestamp: new Date().toISOString(),
+                datetime: getCurrentDateTime()
+            });
+            
+            // Sauvegarder dans le localStorage
+            localStorage.setItem('locationEntries', JSON.stringify(entries));
+            
+            // Mettre à jour l'affichage
+            displayEntries(entries);
+        }
+
+        // Fonction pour afficher les entrées
+        function displayEntries(entries) {
+            const historyList = document.getElementById('history-list');
+            
+            if (entries.length === 0) {
+                historyList.innerHTML = '<p>Aucun passage enregistré récemment.</p>';
+                return;
             }
-          }
-        })
-        .catch(error => {
-          showLoading(false);
-          if (!silent) {
-            showStatus('statusGet', 'error', 'Erreur de communication avec le serveur: ' + error.message);
-          }
-          checkConnection();
-        });
-    }
-    
-    function populateStopsTable(stops) {
-      const tableBody = document.getElementById('stopsTableBody');
-      tableBody.innerHTML = '';
-      
-      stops.sort((a, b) => a.time.localeCompare(b.time));
-      stops.forEach(stop => {
-        const row = document.createElement('tr');
-        
-        const nameCell = document.createElement('td');
-        nameCell.textContent = stop.name;
-        row.appendChild(nameCell);
-        
-        const timeCell = document.createElement('td');
-        timeCell.textContent = stop.time;
-        row.appendChild(timeCell);
-        
-        const latCell = document.createElement('td');
-        latCell.textContent = stop.lat;
-        row.appendChild(latCell);
-        
-        const lngCell = document.createElement('td');
-        lngCell.textContent = stop.lng;
-        row.appendChild(lngCell);
-        
-        tableBody.appendChild(row);
-      });
-    }
-    
-    function showLoading(show) {
-      document.getElementById('loading').style.display = show ? 'block' : 'none';
-    }
-    
-    function showStatus(elementId, type, message) {
-      const element = document.getElementById(elementId);
-      if (!message) {
-        element.style.display = 'none';
-        return;
-      }
-      
-      element.className = 'status ' + type;
-      element.textContent = message;
-      element.style.display = 'block';
-      
-      if (type === 'success') {
-        setTimeout(() => {
-          element.style.display = 'none';
-        }, 5000);
-      }
-    }
-  </script>
+            
+            historyList.innerHTML = '';
+            
+            // Afficher les entrées récentes d'abord
+            entries.reverse().forEach(entry => {
+                const entryElement = document.createElement('div');
+                entryElement.className = 'history-item';
+                entryElement.innerHTML = `
+                    <p><strong>Région:</strong> ${entry.region}</p>
+                    <p><strong>Date et heure:</strong> ${entry.datetime}</p>
+                `;
+                historyList.appendChild(entryElement);
+            });
+        }
+
+        // Fonction principale pour gérer la géolocalisation
+        async function handleGeolocation() {
+            const currentLocationDiv = document.getElementById('current-location');
+            
+            try {
+                // Demander la géolocalisation
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    // Obtenir la région
+                    const region = await getRegionFromCoordinates(latitude, longitude);
+                    
+                    // Afficher la localisation actuelle
+                    currentLocationDiv.innerHTML = `
+                        <h3>Votre passage a été enregistré</h3>
+                        <p><strong>Région:</strong> ${region}</p>
+                        <p><strong>Date et heure:</strong> ${getCurrentDateTime()}</p>
+                    `;
+                    
+                    // Sauvegarder l'entrée
+                    saveEntry(region);
+                    
+                }, (error) => {
+                    console.error("Erreur de géolocalisation:", error);
+                    currentLocationDiv.innerHTML = `
+                        <div class="error">
+                            <p>Impossible d'accéder à votre position. Assurez-vous d'autoriser la géolocalisation.</p>
+                            <p>Erreur: ${error.message}</p>
+                        </div>
+                    `;
+                    
+                    // Charger quand même l'historique
+                    const entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
+                    displayEntries(cleanOldEntries(entries));
+                });
+            } catch (error) {
+                console.error("Erreur:", error);
+                currentLocationDiv.innerHTML = `
+                    <div class="error">
+                        <p>Une erreur est survenue lors du traitement de votre position.</p>
+                    </div>
+                `;
+                
+                // Charger quand même l'historique
+                const entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
+                displayEntries(cleanOldEntries(entries));
+            }
+        }
+
+        // Démarrer l'application
+        window.onload = function() {
+            handleGeolocation();
+        };
+    </script>
 </body>
 </html>
