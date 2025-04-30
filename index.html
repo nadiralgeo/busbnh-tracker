@@ -306,23 +306,13 @@
       
       <div id="response" style="display: none;"></div>
     </div>
-    
-    <div class="section">
-      <h2>Actions de maintenance</h2>
-      <div class="buttons-row">
-        <button type="button" onclick="testAddStop()">Tester l'ajout</button>
-        <button type="button" onclick="recreerFeuille()">Recréer feuille + test</button>
-      </div>
-      <div id="statusMaintenance" class="status"></div>
-    </div>
   </div>
 
   <script>
     // Configuration de l'application
     const CONFIG = {
-      // Remplacez cette URL par l'URL de déploiement de votre script Google Apps Script
-      // TRÈS IMPORTANT: Assurez-vous que cette URL est correcte et à jour
-      SCRIPT_URL: 'https://script.google.com/macros/library/d/1MmdVRQrllVXpTrjmfxETLzzHpVfUQJVYYI4Zc_sj2yrUCNgLIpbMDbUZ/24',
+      // URL du script déployé (à remplacer par votre URL de déploiement)
+      SCRIPT_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
       
       // Intervalle de rafraîchissement automatique en millisecondes (5 minutes par défaut)
       REFRESH_INTERVAL: 5 * 60 * 1000,
@@ -603,89 +593,6 @@
         
         tableBody.appendChild(row);
       });
-    }
-    
-    // Fonction pour tester l'ajout d'un arrêt
-    function testAddStop() {
-      if (!isOnline) {
-        showStatus('statusMaintenance', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'exécuter cette action.');
-        return;
-      }
-      
-      showLoading(true);
-      showStatus('statusMaintenance', '', '');
-      
-      const testData = {
-        name: "Test automatique",
-        time: new Date().toTimeString().slice(0, 8),
-        lat: 36.723456,
-        lng: 3.198765
-      };
-      
-      // Utiliser une requête GET pour l'ajout du test
-      const url = `${CONFIG.SCRIPT_URL}?action=addStop&name=${encodeURIComponent(testData.name)}&time=${encodeURIComponent(testData.time)}&lat=${testData.lat}&lng=${testData.lng}`;
-      
-      fetch(url)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Erreur HTTP ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          showLoading(false);
-          if (data.success) {
-            showStatus('statusMaintenance', 'success', 'Test réussi: passage de test enregistré avec succès!');
-            // Actualiser la liste des arrêts
-            getStops();
-          } else {
-            showStatus('statusMaintenance', 'error', 'Échec du test: ' + (data.error || 'Erreur inconnue'));
-          }
-        })
-        .catch(error => {
-          showLoading(false);
-          showStatus('statusMaintenance', 'error', 'Erreur de communication: ' + error.message);
-          checkConnection();
-        });
-    }
-    
-    // Fonction pour recréer la feuille de passages (version améliorée)
-    function recreerFeuille() {
-      if (!isOnline) {
-        showStatus('statusMaintenance', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'exécuter cette action.');
-        return;
-      }
-      
-      if (!confirm('Êtes-vous sûr de vouloir recréer la feuille ? Cela supprimera toutes les données existantes.')) {
-        return;
-      }
-      
-      showLoading(true);
-      showStatus('statusMaintenance', '', '');
-      
-      // Utiliser une requête fetch standard au lieu de JSONP
-      fetch(`${CONFIG.SCRIPT_URL}?action=recreerFeuillePassages`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Erreur HTTP ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          showLoading(false);
-          if (data.success) {
-            showStatus('statusMaintenance', 'success', 'Feuille recréée avec succès!');
-            // Actualiser la liste des arrêts
-            setTimeout(getStops, 1000);
-          } else {
-            showStatus('statusMaintenance', 'error', 'Échec de la recréation: ' + (data.error || 'Erreur inconnue'));
-          }
-        })
-        .catch(error => {
-          showLoading(false);
-          showStatus('statusMaintenance', 'error', 'Erreur de communication: ' + error.message);
-          checkConnection();
-        });
     }
     
     // Fonction utilitaire pour afficher/masquer le chargement
