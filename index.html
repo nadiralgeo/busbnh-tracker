@@ -29,6 +29,13 @@
             border-radius: 5px;
             border-left: 5px solid #3498db;
         }
+        .destination-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f8f5;
+            border-radius: 5px;
+            border-left: 5px solid #1abc9c;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -58,13 +65,6 @@
             border-radius: 5px;
             margin-top: 20px;
         }
-        .destination-info {
-            background-color: #e8f8f5;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-            border-left: 5px solid #1abc9c;
-        }
         .estimate {
             font-weight: bold;
             color: #2980b9;
@@ -85,31 +85,40 @@
         .distance {
             font-weight: bold;
         }
+        .bus-line {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- 
+        CONFIGURATION: REPLACE THESE VALUES WITH YOUR SPECIFIC BUS LINE INFORMATION
+        -->
+        <script>
+            // Set your bus line information here
+            const BUS_LINE = "Line 4742";
+            const DESTINATION_NAME = "Central Station";
+            const DESTINATION_COORDS = {
+                latitude: 48.858844,  // Replace with actual coordinates
+                longitude: 2.294351   // Replace with actual coordinates
+            };
+            const BUS_ID = "bus-line-42"; // Unique ID for your bus line (for database)
+        </script>
+        
         <h1>Bus Tracker</h1>
+        <div class="bus-line-info" style="text-align: center;">
+            <span class="bus-line" id="bus-line"></span>
+        </div>
         
         <div id="current-location" class="location-info">
             <p class="loading">Getting your location...</p>
         </div>
         
-        <div class="destination-info">
-            <h3>Final Destination</h3>
-            <p>Please enter the coordinates of the final destination:</p>
-            <div>
-                <label for="dest-lat">Latitude:</label>
-                <input type="number" id="dest-lat" step="0.000001" placeholder="e.g. 48.858844">
-            </div>
-            <div style="margin-top: 10px;">
-                <label for="dest-lng">Longitude:</label>
-                <input type="number" id="dest-lng" step="0.000001" placeholder="e.g. 2.294351">
-            </div>
-            <button id="save-dest" class="refresh-btn" style="margin-top: 10px;">Save Destination</button>
-            <div id="dest-saved" style="margin-top: 10px; display: none; color: green;">
-                Destination saved!
-            </div>
+        <div class="destination-info" id="destination-info">
+            <p class="loading">Loading destination information...</p>
         </div>
         
         <div class="history">
@@ -142,22 +151,23 @@
     <script>
         // Firebase configuration - REPLACE WITH YOUR OWN
         const firebaseConfig = {
-            apiKey: "VOTRE_API_KEY",
-            authDomain: "votre-app.firebaseapp.com",
-            databaseURL: "https://votre-app-default-rtdb.firebaseio.com",
-            projectId: "votre-app",
-            storageBucket: "votre-app.appspot.com",
-            messagingSenderId: "votre-messaging-id",
-            appId: "votre-app-id"
+            apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
+            authDomain: "bustrack-cb124.firebaseapp.com",
+            databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
+            projectId: "bustrack-cb124",
+            storageBucket: "bustrack-cb124.firebasestorage.app",
+            messagingSenderId: "1010286119665",
+            appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const trackingRef = database.ref('bustracking');
-        const destRef = database.ref('destination');
+        const trackingRef = database.ref('bustracking/' + BUS_ID);
         
-        let destinationCoords = null;
+        // Set destination info in the UI
+        document.getElementById('bus-line').textContent = BUS_LINE;
+        
         let currentCoords = null;
         let averageSpeed = 30; // km/h - default bus speed
 
@@ -277,11 +287,6 @@
                 return;
             }
             
-            if (!destinationCoords) {
-                trackingDataTable.innerHTML = '<tr><td colspan="4">Please set the final destination to see sorted data.</td></tr>';
-                return;
-            }
-            
             trackingDataTable.innerHTML = '';
             
             // Convert object to array and calculate distances
@@ -289,7 +294,7 @@
                 const entry = entries[key];
                 const distance = calculateDistance(
                     entry.latitude, entry.longitude,
-                    destinationCoords.latitude, destinationCoords.longitude
+                    DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
                 );
                 
                 return {
@@ -334,6 +339,33 @@
                 });
         }
 
+        // Function to load and display destination information
+        async function loadDestinationInfo() {
+            const destinationDiv = document.getElementById('destination-info');
+            try {
+                // Get destination name from coordinates if not already defined
+                let destinationLocationName = DESTINATION_NAME;
+                if (!destinationLocationName || destinationLocationName === "") {
+                    destinationLocationName = await getLocationNameFromCoordinates(
+                        DESTINATION_COORDS.latitude, 
+                        DESTINATION_COORDS.longitude
+                    );
+                }
+                
+                destinationDiv.innerHTML = `
+                    <h3>Final Destination</h3>
+                    <p><strong>Location:</strong> ${destinationLocationName}</p>
+                `;
+            } catch (error) {
+                console.error("Error loading destination info:", error);
+                destinationDiv.innerHTML = `
+                    <h3>Final Destination</h3>
+                    <p>${DESTINATION_NAME}</p>
+                    <p class="error">Error loading additional destination info.</p>
+                `;
+            }
+        }
+
         // Function to handle geolocation
         async function handleGeolocation() {
             const currentLocationDiv = document.getElementById('current-location');
@@ -347,24 +379,20 @@
                     // Get location name
                     const locationName = await getLocationNameFromCoordinates(latitude, longitude);
                     
+                    // Calculate distance to destination
+                    const distance = calculateDistance(
+                        latitude, longitude,
+                        DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+                    );
+                    
                     // Display current location
                     currentLocationDiv.innerHTML = `
                         <h3>Your Location Recorded</h3>
                         <p><strong>Location:</strong> ${locationName}</p>
                         <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
+                        <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
+                        <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
                     `;
-                    
-                    if (destinationCoords) {
-                        const distance = calculateDistance(
-                            latitude, longitude,
-                            destinationCoords.latitude, destinationCoords.longitude
-                        );
-                        
-                        currentLocationDiv.innerHTML += `
-                            <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
-                            <p><strong>Estimated arrival:</strong> ${estimateArrival(distance)}</p>
-                        `;
-                    }
                     
                     // Save tracking entry
                     saveTrackingEntry(locationName, latitude, longitude);
@@ -388,69 +416,10 @@
             }
         }
 
-        // Load destination coordinates
-        function loadDestination() {
-            destRef.once('value')
-                .then(snapshot => {
-                    const dest = snapshot.val();
-                    if (dest) {
-                        destinationCoords = dest;
-                        document.getElementById('dest-lat').value = dest.latitude;
-                        document.getElementById('dest-lng').value = dest.longitude;
-                        document.getElementById('dest-saved').style.display = 'block';
-                        
-                        // Refresh tracking data display with the destination
-                        trackingRef.once('value')
-                            .then(snapshot => {
-                                displayTrackingEntries(snapshot.val());
-                            });
-                    }
-                })
-                .catch(error => {
-                    console.error("Error loading destination:", error);
-                });
-        }
-
-        // Save destination coordinates
-        function saveDestination() {
-            const lat = parseFloat(document.getElementById('dest-lat').value);
-            const lng = parseFloat(document.getElementById('dest-lng').value);
-            
-            if (isNaN(lat) || isNaN(lng)) {
-                alert("Please enter valid coordinates for the destination.");
-                return;
-            }
-            
-            destinationCoords = {
-                latitude: lat,
-                longitude: lng
-            };
-            
-            destRef.set(destinationCoords)
-                .then(() => {
-                    document.getElementById('dest-saved').style.display = 'block';
-                    
-                    // Update display with new destination
-                    trackingRef.once('value')
-                        .then(snapshot => {
-                            displayTrackingEntries(snapshot.val());
-                        });
-                        
-                    // Update current location info if available
-                    if (currentCoords) {
-                        handleGeolocation();
-                    }
-                })
-                .catch(error => {
-                    console.error("Error saving destination:", error);
-                    alert("Failed to save destination. Please try again.");
-                });
-        }
-
         // Start the application
         window.onload = function() {
-            // Load destination
-            loadDestination();
+            // Load destination info
+            loadDestinationInfo();
             
             // Clean old entries
             cleanDatabase();
@@ -464,7 +433,6 @@
             });
             
             // Set up event listeners
-            document.getElementById('save-dest').addEventListener('click', saveDestination);
             document.getElementById('refresh-btn').addEventListener('click', () => {
                 handleGeolocation();
                 trackingRef.once('value')
