@@ -82,13 +82,6 @@
     button.secondary:hover {
       background-color: #4cae4c;
     }
-    #mapContainer {
-      height: 300px;
-      width: 100%;
-      margin-top: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
     #response {
       margin-top: 20px;
       padding: 15px;
@@ -106,65 +99,6 @@
       margin-top: 20px;
       max-height: 300px;
       overflow: auto;
-    }
-    .stop-item {
-      padding: 10px;
-      margin-bottom: 5px;
-      border: 1px solid #eee;
-      border-radius: 4px;
-      background-color: white;
-    }
-    .stop-name {
-      font-weight: bold;
-      color: #0066cc;
-    }
-    .stop-time {
-      color: #d14836;
-      margin-left: 5px;
-    }
-    .buttons-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .buttons-row button {
-      flex: 1;
-    }
-    .status {
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 4px;
-      display: none;
-    }
-    .success {
-      background-color: #dff0d8;
-      color: #3c763d;
-      border: 1px solid #d6e9c6;
-    }
-    .error {
-      background-color: #f2dede;
-      color: #a94442;
-      border: 1px solid #ebccd1;
-    }
-    .loading {
-      text-align: center;
-      display: none;
-      padding: 10px;
-    }
-    .loader {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #0066cc;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 2s linear infinite;
-      display: inline-block;
-      margin-right: 10px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
     .stop-table {
       width: 100%;
@@ -235,6 +169,42 @@
     .now-button:hover {
       background-color: #ccc;
     }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+      border: 1px solid #d6e9c6;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+      border: 1px solid #ebccd1;
+    }
+    .loading {
+      text-align: center;
+      display: none;
+      padding: 10px;
+    }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0066cc;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 2s linear infinite;
+      display: inline-block;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -294,9 +264,7 @@
               <th>Longitude</th>
             </tr>
           </thead>
-          <tbody id="stopsTableBody">
-            <!-- Les arrêts seront ajoutés ici dynamiquement -->
-          </tbody>
+          <tbody id="stopsTableBody"></tbody>
         </table>
         <div class="refresh-notice">
           Dernière mise à jour: <span id="lastUpdate">--:--:--</span>
@@ -309,111 +277,85 @@
   </div>
 
   <script>
-    // Configuration de l'application
     const CONFIG = {
-      // URL du script déployé (à remplacer par votre URL de déploiement)
       SCRIPT_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
-      
-      // Intervalle de rafraîchissement automatique en millisecondes (5 minutes par défaut)
       REFRESH_INTERVAL: 5 * 60 * 1000,
-      
-      // Nombre maximum de tentatives de reconnexion
       MAX_RETRY_ATTEMPTS: 3,
-      
-      // Délai entre les tentatives de reconnexion (en ms)
       RETRY_DELAY: 5000
     };
     
-    // Variables globales pour la gestion des états
     let isOnline = navigator.onLine;
     let retryAttempts = 0;
     let refreshTimer = null;
     let lastLoadTime = null;
     
-    // Initialisation au chargement de la page
     window.onload = function() {
       updateCurrentTime();
       displayCurrentDate();
       checkConnection();
-      
-      // Écouter les changements d'état de connexion
       window.addEventListener('online', function() {
         isOnline = true;
         document.getElementById('offlineNotice').style.display = 'none';
-        getStops(); // Rafraîchir les données dès que la connexion est rétablie
+        getStops();
       });
-      
       window.addEventListener('offline', function() {
         isOnline = false;
         document.getElementById('offlineNotice').style.display = 'block';
       });
-      
-      // Charger les arrêts automatiquement au démarrage
       getStops();
-      
-      // Configurer le rafraîchissement automatique
       setupAutoRefresh();
     };
     
-    // Fonction pour vérifier l'état de la connexion
     function checkConnection() {
       isOnline = navigator.onLine;
       document.getElementById('offlineNotice').style.display = isOnline ? 'none' : 'block';
-      
       if (isOnline) {
-        // Si en ligne, essayer de se connecter à l'API
         fetch(CONFIG.SCRIPT_URL + '?ping=true')
           .then(response => {
-            if (!response.ok) throw new Error('Erreur de connexion à l'API');
-            retryAttempts = 0; // Réinitialiser les tentatives après succès
+            if (!response.ok) throw new Error('Erreur de connexion à l\'API');
+            retryAttempts = 0;
           })
           .catch(error => {
-            console.warn('Impossible de se connecter à l'API:', error);
+            console.warn('Impossible de se connecter à l\'API:', error);
             if (retryAttempts < CONFIG.MAX_RETRY_ATTEMPTS) {
               retryAttempts++;
               setTimeout(checkConnection, CONFIG.RETRY_DELAY);
             } else {
               document.getElementById('offlineNotice').style.display = 'block';
               document.getElementById('offlineNotice').textContent = 
-                'Impossible de se connecter au serveur. Vérifiez votre connexion ou l'URL du script.';
+                'Impossible de se connecter au serveur. Vérifiez votre connexion ou l\'URL du script.';
             }
           });
       }
     }
     
-    // Configurer le rafraîchissement automatique des données
     function setupAutoRefresh() {
       if (refreshTimer) {
         clearInterval(refreshTimer);
       }
-      
       refreshTimer = setInterval(() => {
         if (isOnline) {
-          getStops(true); // Le paramètre true indique une mise à jour silencieuse
+          getStops(true);
         }
       }, CONFIG.REFRESH_INTERVAL);
     }
     
-    // Mettre à jour l'heure actuelle dans le champ d'heure
     function updateCurrentTime() {
       document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
     }
     
-    // Afficher la date du jour
     function displayCurrentDate() {
       const today = new Date();
       const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
       document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', options);
     }
     
-    // Mettre à jour l'horodatage de la dernière mise à jour
     function updateLastUpdateTime() {
       lastLoadTime = new Date();
       const timeStr = lastLoadTime.toLocaleTimeString('fr-FR');
       document.getElementById('lastUpdate').textContent = timeStr;
     }
     
-    // Fonction pour obtenir la position actuelle
     function getCurrentPosition() {
       showLoading(true);
       showStatus('statusAdd', '', '');
@@ -438,7 +380,6 @@
       }
     }
     
-    // Fonction pour ajouter un arrêt
     function addStop() {
       if (!isOnline) {
         showStatus('statusAdd', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'enregistrer le passage.');
@@ -453,7 +394,6 @@
       const lat = parseFloat(document.getElementById('lat').value);
       const lng = parseFloat(document.getElementById('lng').value);
       
-      // Validation des champs
       if (!name) {
         showLoading(false);
         showStatus('statusAdd', 'error', 'Veuillez entrer un nom d\'arrêt.');
@@ -472,7 +412,6 @@
         return;
       }
       
-      // Construction de l'URL pour la requête GET
       const url = `${CONFIG.SCRIPT_URL}?action=addStop&name=${encodeURIComponent(name)}&time=${encodeURIComponent(time)}&lat=${lat}&lng=${lng}`;
       
       fetch(url)
@@ -485,23 +424,21 @@
         .then(data => {
           showLoading(false);
           if (data.success) {
-            showStatus('statusAdd', 'success', 'Passage enregistré avec succès!');
+            showStatus('statusAdd', 'success', 'Passage enregistré avec succès !');
             document.getElementById('name').value = '';
             updateCurrentTime();
-            // Actualiser la liste des arrêts
             getStops();
           } else {
-            showStatus('statusAdd', 'error', 'Erreur: ' + (data.error || 'Échec de l\'ajout'));
+            showStatus('statusAdd', 'error', 'Erreur : ' + (data.error || 'Échec de l\'ajout'));
           }
         })
         .catch(error => {
           showLoading(false);
           showStatus('statusAdd', 'error', 'Erreur de communication avec le serveur: ' + error.message);
-          checkConnection(); // Vérifier l'état de la connexion
+          checkConnection();
         });
     }
     
-    // Fonction pour récupérer tous les arrêts
     function getStops(silent = false) {
       if (!isOnline) {
         if (!silent) {
@@ -525,14 +462,7 @@
         })
         .then(data => {
           showLoading(false);
-          
-          // Mettre à jour l'horodatage
           updateLastUpdateTime();
-          
-          // Afficher les données brutes dans la console pour le débogage
-          console.log("Données reçues:", data);
-          
-          // Mettre à jour les informations dans la page
           if (data.success) {
             if (data.stops && data.stops.length > 0) {
               if (!silent) {
@@ -549,7 +479,7 @@
             }
           } else {
             if (!silent) {
-              showStatus('statusGet', 'error', 'Erreur: ' + (data.error || 'Échec de la récupération'));
+              showStatus('statusGet', 'error', 'Erreur : ' + (data.error || 'Échec de la récupération'));
             }
           }
         })
@@ -558,20 +488,15 @@
           if (!silent) {
             showStatus('statusGet', 'error', 'Erreur de communication avec le serveur: ' + error.message);
           }
-          checkConnection(); // Vérifier l'état de la connexion
+          checkConnection();
         });
     }
     
-    // Fonction pour peupler le tableau des arrêts
     function populateStopsTable(stops) {
       const tableBody = document.getElementById('stopsTableBody');
       tableBody.innerHTML = '';
       
-      // Trier les arrêts par heure
-      stops.sort((a, b) => {
-        return a.time.localeCompare(b.time);
-      });
-      
+      stops.sort((a, b) => a.time.localeCompare(b.time));
       stops.forEach(stop => {
         const row = document.createElement('tr');
         
@@ -595,12 +520,10 @@
       });
     }
     
-    // Fonction utilitaire pour afficher/masquer le chargement
     function showLoading(show) {
       document.getElementById('loading').style.display = show ? 'block' : 'none';
     }
     
-    // Fonction utilitaire pour afficher les statuts
     function showStatus(elementId, type, message) {
       const element = document.getElementById(elementId);
       if (!message) {
@@ -612,7 +535,6 @@
       element.textContent = message;
       element.style.display = 'block';
       
-      // Auto-hide success messages after 5 seconds
       if (type === 'success') {
         setTimeout(() => {
           element.style.display = 'none';
