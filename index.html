@@ -4,13 +4,14 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test API Bus Tracking</title>
+  <title>Suivi des Bus en Temps Réel</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
       line-height: 1.6;
       background-color: #f5f5f5;
+      color: #333;
     }
     .container {
       max-width: 800px;
@@ -22,13 +23,15 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     h1 {
-      color: #4285f4;
+      color: #0066cc;
       text-align: center;
       margin-bottom: 20px;
     }
     h2 {
-      color: #555;
+      color: #444;
       margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
     }
     .section {
       margin-bottom: 20px;
@@ -36,6 +39,7 @@
       border: 1px solid #e0e0e0;
       border-radius: 5px;
       background-color: #fafafa;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     label {
       display: block;
@@ -53,9 +57,15 @@
     input {
       width: 100%;
       box-sizing: border-box;
+      transition: border-color 0.3s;
+    }
+    input:focus {
+      border-color: #4285f4;
+      outline: none;
+      box-shadow: 0 0 5px rgba(66, 133, 244, 0.3);
     }
     button {
-      background-color: #4285f4;
+      background-color: #0066cc;
       color: white;
       border: none;
       cursor: pointer;
@@ -64,7 +74,7 @@
       transition: background-color 0.3s;
     }
     button:hover {
-      background-color: #357ae8;
+      background-color: #0055b3;
     }
     button.secondary {
       background-color: #5cb85c;
@@ -106,7 +116,7 @@
     }
     .stop-name {
       font-weight: bold;
-      color: #4285f4;
+      color: #0066cc;
     }
     .stop-time {
       color: #d14836;
@@ -143,7 +153,7 @@
     }
     .loader {
       border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
+      border-top: 4px solid #0066cc;
       border-radius: 50%;
       width: 20px;
       height: 20px;
@@ -160,6 +170,7 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     .stop-table th, .stop-table td {
       border: 1px solid #ddd;
@@ -169,24 +180,83 @@
     .stop-table tr:nth-child(even) {
       background-color: #f2f2f2;
     }
+    .stop-table tr:hover {
+      background-color: #e9f3ff;
+    }
     .stop-table th {
-      background-color: #4285f4;
+      background-color: #0066cc;
       color: white;
+    }
+    .refresh-notice {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #777;
+    }
+    .offline-mode {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #ffeeba;
+      text-align: center;
+      display: none;
+    }
+    .retry-button {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 2px 8px;
+      background-color: #856404;
+      color: white;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .retry-button:hover {
+      background-color: #654c03;
+    }
+    .time-input-container {
+      position: relative;
+    }
+    .now-button {
+      position: absolute;
+      right: 5px;
+      top: 10px;
+      padding: 1px 8px;
+      font-size: 12px;
+      background-color: #ddd;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      color: #555;
+      width: auto;
+    }
+    .now-button:hover {
+      background-color: #ccc;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Test de l'API Bus Tracking</h1>
+    <h1>Suivi des Bus en Temps Réel</h1>
+    
+    <div id="offlineNotice" class="offline-mode">
+      Vous êtes actuellement hors ligne. Certaines fonctionnalités peuvent ne pas fonctionner.
+      <span class="retry-button" onclick="checkConnection()">Réessayer</span>
+    </div>
     
     <div class="section">
-      <h2>Ajouter un arrêt</h2>
+      <h2>Enregistrer un passage de bus</h2>
       <form id="addStopForm">
         <label for="name">Nom de l'arrêt:</label>
-        <input type="text" id="name" name="name" required>
+        <input type="text" id="name" name="name" placeholder="Ex: Arrêt Principal" required>
         
         <label for="time">Heure (HH:MM:SS):</label>
-        <input type="text" id="time" name="time" required>
+        <div class="time-input-container">
+          <input type="text" id="time" name="time" placeholder="Ex: 08:30:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}" required>
+          <button type="button" class="now-button" onclick="updateCurrentTime()">Maintenant</button>
+        </div>
         
         <label for="lat">Latitude:</label>
         <input type="number" id="lat" name="lat" step="0.000001" value="36.723456" required>
@@ -195,7 +265,7 @@
         <input type="number" id="lng" name="lng" step="0.000001" value="3.198765" required>
         
         <div class="buttons-row">
-          <button type="button" onclick="addStop()">Ajouter l'arrêt</button>
+          <button type="button" onclick="addStop()">Enregistrer le passage</button>
           <button type="button" class="secondary" onclick="getCurrentPosition()">Utiliser ma position</button>
         </div>
       </form>
@@ -204,8 +274,8 @@
     </div>
     
     <div class="section">
-      <h2>Récupérer les arrêts</h2>
-      <button type="button" onclick="getStops()">Obtenir tous les arrêts d'aujourd'hui</button>
+      <h2>Passages enregistrés aujourd'hui</h2>
+      <button type="button" onclick="getStops()">Actualiser la liste des passages</button>
       <div id="statusGet" class="status"></div>
       
       <div id="loading" class="loading">
@@ -213,7 +283,7 @@
       </div>
       
       <div id="stopsContainer" class="stops-list" style="display: none;">
-        <h3>Arrêts enregistrés aujourd'hui</h3>
+        <h3>Liste des passages enregistrés</h3>
         <div id="currentDate" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
         <table class="stop-table">
           <thead>
@@ -228,38 +298,129 @@
             <!-- Les arrêts seront ajoutés ici dynamiquement -->
           </tbody>
         </table>
+        <div class="refresh-notice">
+          Dernière mise à jour: <span id="lastUpdate">--:--:--</span>
+          <button type="button" onclick="getStops()" style="width:auto; padding:2px 8px; margin-left:10px; font-size:12px;">Actualiser</button>
+        </div>
       </div>
       
-      <div id="response"></div>
+      <div id="response" style="display: none;"></div>
     </div>
     
     <div class="section">
       <h2>Actions de maintenance</h2>
       <div class="buttons-row">
         <button type="button" onclick="testAddStop()">Tester l'ajout</button>
-        <button type="button" onclick="recreerFeuillePassages()">Recréer feuille + test</button>
+        <button type="button" onclick="recreerFeuille()">Recréer feuille + test</button>
       </div>
       <div id="statusMaintenance" class="status"></div>
     </div>
   </div>
 
   <script>
-    // URL du script Google Apps Script
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzs3Eqsuflye5HHAttnHKDCUCUc7-PxNE2KIcNBqUlAzh5dc-CaURTu-p5RN-pXcMb/exec';
+    // Configuration de l'application
+    const CONFIG = {
+      // Remplacez cette URL par l'URL de déploiement de votre script Google Apps Script
+      // TRÈS IMPORTANT: Assurez-vous que cette URL est correcte et à jour
+      SCRIPT_URL: 'https://script.google.com/macros/s/VOTRE_ID_DE_DEPLOIEMENT/exec',
+      
+      // Intervalle de rafraîchissement automatique en millisecondes (5 minutes par défaut)
+      REFRESH_INTERVAL: 5 * 60 * 1000,
+      
+      // Nombre maximum de tentatives de reconnexion
+      MAX_RETRY_ATTEMPTS: 3,
+      
+      // Délai entre les tentatives de reconnexion (en ms)
+      RETRY_DELAY: 5000
+    };
     
-    // Mettre à jour l'heure actuelle au chargement de la page
+    // Variables globales pour la gestion des états
+    let isOnline = navigator.onLine;
+    let retryAttempts = 0;
+    let refreshTimer = null;
+    let lastLoadTime = null;
+    
+    // Initialisation au chargement de la page
     window.onload = function() {
-      document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
+      updateCurrentTime();
       displayCurrentDate();
+      checkConnection();
+      
+      // Écouter les changements d'état de connexion
+      window.addEventListener('online', function() {
+        isOnline = true;
+        document.getElementById('offlineNotice').style.display = 'none';
+        getStops(); // Rafraîchir les données dès que la connexion est rétablie
+      });
+      
+      window.addEventListener('offline', function() {
+        isOnline = false;
+        document.getElementById('offlineNotice').style.display = 'block';
+      });
+      
       // Charger les arrêts automatiquement au démarrage
       getStops();
+      
+      // Configurer le rafraîchissement automatique
+      setupAutoRefresh();
     };
+    
+    // Fonction pour vérifier l'état de la connexion
+    function checkConnection() {
+      isOnline = navigator.onLine;
+      document.getElementById('offlineNotice').style.display = isOnline ? 'none' : 'block';
+      
+      if (isOnline) {
+        // Si en ligne, essayer de se connecter à l'API
+        fetch(CONFIG.SCRIPT_URL + '?ping=true')
+          .then(response => {
+            if (!response.ok) throw new Error('Erreur de connexion à l'API');
+            retryAttempts = 0; // Réinitialiser les tentatives après succès
+          })
+          .catch(error => {
+            console.warn('Impossible de se connecter à l'API:', error);
+            if (retryAttempts < CONFIG.MAX_RETRY_ATTEMPTS) {
+              retryAttempts++;
+              setTimeout(checkConnection, CONFIG.RETRY_DELAY);
+            } else {
+              document.getElementById('offlineNotice').style.display = 'block';
+              document.getElementById('offlineNotice').textContent = 
+                'Impossible de se connecter au serveur. Vérifiez votre connexion ou l'URL du script.';
+            }
+          });
+      }
+    }
+    
+    // Configurer le rafraîchissement automatique des données
+    function setupAutoRefresh() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+      }
+      
+      refreshTimer = setInterval(() => {
+        if (isOnline) {
+          getStops(true); // Le paramètre true indique une mise à jour silencieuse
+        }
+      }, CONFIG.REFRESH_INTERVAL);
+    }
+    
+    // Mettre à jour l'heure actuelle dans le champ d'heure
+    function updateCurrentTime() {
+      document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
+    }
     
     // Afficher la date du jour
     function displayCurrentDate() {
       const today = new Date();
       const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
       document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', options);
+    }
+    
+    // Mettre à jour l'horodatage de la dernière mise à jour
+    function updateLastUpdateTime() {
+      lastLoadTime = new Date();
+      const timeStr = lastLoadTime.toLocaleTimeString('fr-FR');
+      document.getElementById('lastUpdate').textContent = timeStr;
     }
     
     // Fonction pour obtenir la position actuelle
@@ -279,7 +440,7 @@
             showLoading(false);
             showStatus('statusAdd', 'error', 'Erreur lors de la récupération de la position: ' + error.message);
           },
-          { enableHighAccuracy: true }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
         showLoading(false);
@@ -289,6 +450,11 @@
     
     // Fonction pour ajouter un arrêt
     function addStop() {
+      if (!isOnline) {
+        showStatus('statusAdd', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'enregistrer le passage.');
+        return;
+      }
+      
       showLoading(true);
       showStatus('statusAdd', '', '');
       
@@ -297,23 +463,41 @@
       const lat = parseFloat(document.getElementById('lat').value);
       const lng = parseFloat(document.getElementById('lng').value);
       
-      if (!name || !time || isNaN(lat) || isNaN(lng)) {
+      // Validation des champs
+      if (!name) {
         showLoading(false);
-        showStatus('statusAdd', 'error', 'Veuillez remplir tous les champs correctement.');
+        showStatus('statusAdd', 'error', 'Veuillez entrer un nom d\'arrêt.');
+        return;
+      }
+      
+      if (!time || !/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(time)) {
+        showLoading(false);
+        showStatus('statusAdd', 'error', 'Format d\'heure invalide. Utilisez HH:MM:SS (ex: 08:30:00).');
+        return;
+      }
+      
+      if (isNaN(lat) || isNaN(lng)) {
+        showLoading(false);
+        showStatus('statusAdd', 'error', 'Coordonnées invalides. Veuillez entrer des valeurs numériques.');
         return;
       }
       
       // Construction de l'URL pour la requête GET
-      const url = `${SCRIPT_URL}?action=addStop&name=${encodeURIComponent(name)}&time=${encodeURIComponent(time)}&lat=${lat}&lng=${lng}`;
+      const url = `${CONFIG.SCRIPT_URL}?action=addStop&name=${encodeURIComponent(name)}&time=${encodeURIComponent(time)}&lat=${lat}&lng=${lng}`;
       
       fetch(url)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
           showLoading(false);
           if (data.success) {
-            showStatus('statusAdd', 'success', 'Arrêt ajouté avec succès: ' + data.message);
+            showStatus('statusAdd', 'success', 'Passage enregistré avec succès!');
             document.getElementById('name').value = '';
-            document.getElementById('time').value = new Date().toTimeString().slice(0, 8);
+            updateCurrentTime();
             // Actualiser la liste des arrêts
             getStops();
           } else {
@@ -323,44 +507,68 @@
         .catch(error => {
           showLoading(false);
           showStatus('statusAdd', 'error', 'Erreur de communication avec le serveur: ' + error.message);
+          checkConnection(); // Vérifier l'état de la connexion
         });
     }
     
     // Fonction pour récupérer tous les arrêts
-    function getStops() {
-      showLoading(true);
-      showStatus('statusGet', '', '');
-      document.getElementById('stopsContainer').style.display = 'none';
-      document.getElementById('response').textContent = '';
+    function getStops(silent = false) {
+      if (!isOnline) {
+        if (!silent) {
+          showStatus('statusGet', 'error', 'Vous êtes actuellement hors ligne. Impossible de récupérer les données.');
+        }
+        return;
+      }
       
-      fetch(`${SCRIPT_URL}?action=getStops`)
-        .then(response => response.json())
+      if (!silent) {
+        showLoading(true);
+        showStatus('statusGet', '', '');
+        document.getElementById('stopsContainer').style.display = 'none';
+      }
+      
+      fetch(`${CONFIG.SCRIPT_URL}?action=getStops`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
           showLoading(false);
+          
+          // Mettre à jour l'horodatage
+          updateLastUpdateTime();
           
           // Afficher les données brutes dans la console pour le débogage
           console.log("Données reçues:", data);
           
-          // Formater la réponse JSON pour l'affichage
-          document.getElementById('response').textContent = JSON.stringify(data, null, 2);
-          
+          // Mettre à jour les informations dans la page
           if (data.success) {
             if (data.stops && data.stops.length > 0) {
-              showStatus('statusGet', 'success', `${data.stops.length} arrêt(s) récupéré(s) pour aujourd'hui.`);
+              if (!silent) {
+                showStatus('statusGet', 'success', `${data.stops.length} passage(s) récupéré(s) pour aujourd'hui.`);
+              }
               populateStopsTable(data.stops);
               document.getElementById('stopsContainer').style.display = 'block';
             } else {
-              showStatus('statusGet', 'success', 'Aucun arrêt enregistré pour aujourd\'hui.');
-              document.getElementById('stopsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun arrêt enregistré pour aujourd\'hui</td></tr>';
+              if (!silent) {
+                showStatus('statusGet', 'success', 'Aucun passage enregistré pour aujourd\'hui.');
+              }
+              document.getElementById('stopsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun passage enregistré pour aujourd\'hui</td></tr>';
               document.getElementById('stopsContainer').style.display = 'block';
             }
           } else {
-            showStatus('statusGet', 'error', 'Erreur: ' + (data.error || 'Échec de la récupération'));
+            if (!silent) {
+              showStatus('statusGet', 'error', 'Erreur: ' + (data.error || 'Échec de la récupération'));
+            }
           }
         })
         .catch(error => {
           showLoading(false);
-          showStatus('statusGet', 'error', 'Erreur de communication avec le serveur: ' + error.message);
+          if (!silent) {
+            showStatus('statusGet', 'error', 'Erreur de communication avec le serveur: ' + error.message);
+          }
+          checkConnection(); // Vérifier l'état de la connexion
         });
     }
     
@@ -399,6 +607,11 @@
     
     // Fonction pour tester l'ajout d'un arrêt
     function testAddStop() {
+      if (!isOnline) {
+        showStatus('statusMaintenance', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'exécuter cette action.');
+        return;
+      }
+      
       showLoading(true);
       showStatus('statusMaintenance', '', '');
       
@@ -410,14 +623,19 @@
       };
       
       // Utiliser une requête GET pour l'ajout du test
-      const url = `${SCRIPT_URL}?action=addStop&name=${encodeURIComponent(testData.name)}&time=${encodeURIComponent(testData.time)}&lat=${testData.lat}&lng=${testData.lng}`;
+      const url = `${CONFIG.SCRIPT_URL}?action=addStop&name=${encodeURIComponent(testData.name)}&time=${encodeURIComponent(testData.time)}&lat=${testData.lat}&lng=${testData.lng}`;
       
       fetch(url)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
           showLoading(false);
           if (data.success) {
-            showStatus('statusMaintenance', 'success', 'Test réussi: ' + data.message);
+            showStatus('statusMaintenance', 'success', 'Test réussi: passage de test enregistré avec succès!');
             // Actualiser la liste des arrêts
             getStops();
           } else {
@@ -427,11 +645,17 @@
         .catch(error => {
           showLoading(false);
           showStatus('statusMaintenance', 'error', 'Erreur de communication: ' + error.message);
+          checkConnection();
         });
     }
     
-    // Fonction pour recréer la feuille de passages
-    function recreerFeuillePassages() {
+    // Fonction pour recréer la feuille de passages (version améliorée)
+    function recreerFeuille() {
+      if (!isOnline) {
+        showStatus('statusMaintenance', 'error', 'Vous êtes actuellement hors ligne. Impossible d\'exécuter cette action.');
+        return;
+      }
+      
       if (!confirm('Êtes-vous sûr de vouloir recréer la feuille ? Cela supprimera toutes les données existantes.')) {
         return;
       }
@@ -439,43 +663,29 @@
       showLoading(true);
       showStatus('statusMaintenance', '', '');
       
-      // Exécuter la fonction depuis Apps Script via une requête JSONP
-      const scriptElement = document.createElement('script');
-      const callbackName = 'callback_' + Math.random().toString(36).substr(2, 9);
-      
-      // Créer une fonction de rappel globale
-      window[callbackName] = function(response) {
-        showLoading(false);
-        if (response && response.success) {
-          showStatus('statusMaintenance', 'success', 'Feuille recréée avec succès!');
-          // Actualiser la liste des arrêts
-          setTimeout(getStops, 1000);
-        } else {
-          showStatus('statusMaintenance', 'error', 'Échec de la recréation: ' + (response.error || 'Erreur inconnue'));
-        }
-        
-        // Supprimer la fonction de rappel et l'élément script
-        delete window[callbackName];
-        document.body.removeChild(scriptElement);
-      };
-      
-      // Construire l'URL avec un paramètre de rappel
-      scriptElement.src = `${SCRIPT_URL}?action=recreerFeuillePassages&callback=${callbackName}`;
-      document.body.appendChild(scriptElement);
-      
-      // Si après 10 secondes, nous n'avons pas de réponse, considérer comme un timeout
-      setTimeout(() => {
-        if (window[callbackName]) {
-          showLoading(false);
-          showStatus('statusMaintenance', 'error', 'Timeout: Aucune réponse du serveur après 10 secondes');
-          
-          // Nettoyer
-          delete window[callbackName];
-          if (document.body.contains(scriptElement)) {
-            document.body.removeChild(scriptElement);
+      // Utiliser une requête fetch standard au lieu de JSONP
+      fetch(`${CONFIG.SCRIPT_URL}?action=recreerFeuillePassages`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
           }
-        }
-      }, 10000);
+          return response.json();
+        })
+        .then(data => {
+          showLoading(false);
+          if (data.success) {
+            showStatus('statusMaintenance', 'success', 'Feuille recréée avec succès!');
+            // Actualiser la liste des arrêts
+            setTimeout(getStops, 1000);
+          } else {
+            showStatus('statusMaintenance', 'error', 'Échec de la recréation: ' + (data.error || 'Erreur inconnue'));
+          }
+        })
+        .catch(error => {
+          showLoading(false);
+          showStatus('statusMaintenance', 'error', 'Erreur de communication: ' + error.message);
+          checkConnection();
+        });
     }
     
     // Fonction utilitaire pour afficher/masquer le chargement
