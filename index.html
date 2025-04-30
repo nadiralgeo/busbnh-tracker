@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page de Géolocalisation</title>
+    <title>Registre de Passage</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -69,7 +69,28 @@
         </div>
     </div>
 
+    <!-- Firebase App (core) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
+
     <script>
+        // Configuration Firebase - REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET FIREBASE
+        const firebaseConfig = {
+            apiKey: "VOTRE_API_KEY",
+            authDomain: "votre-app.firebaseapp.com",
+            databaseURL: "https://votre-app-default-rtdb.firebaseio.com",
+            projectId: "votre-app",
+            storageBucket: "votre-app.appspot.com",
+            messagingSenderId: "votre-messaging-id",
+            appId: "votre-app-id"
+        };
+
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const passagesRef = database.ref('passages');
+
         // Fonction pour obtenir la date et l'heure actuelles formatées
         function getCurrentDateTime() {
             const now = new Date();
@@ -88,10 +109,19 @@
             const now = new Date();
             const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             
-            return entries.filter(entry => {
-                const entryDate = new Date(entry.timestamp);
-                return entryDate > twentyFourHoursAgo;
-            });
+            // Filtrer les entrées trop anciennes
+            const filteredEntries = Object.keys(entries || {})
+                .filter(key => {
+                    const entry = entries[key];
+                    const entryDate = new Date(entry.timestamp);
+                    return entryDate > twentyFourHoursAgo;
+                })
+                .reduce((obj, key) => {
+                    obj[key] = entries[key];
+                    return obj;
+                }, {});
+                
+            return filteredEntries;
         }
 
         // Fonction pour récupérer la région à partir des coordonnées
@@ -109,41 +139,39 @@
             }
         }
 
-        // Fonction pour sauvegarder une nouvelle entrée
+        // Fonction pour sauvegarder une nouvelle entrée dans Firebase
         function saveEntry(region) {
-            // Récupérer les entrées existantes
-            let entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
+            const newEntryRef = passagesRef.push();
+            const now = new Date();
             
-            // Nettoyer les anciennes entrées
-            entries = cleanOldEntries(entries);
-            
-            // Ajouter la nouvelle entrée
-            entries.push({
+            newEntryRef.set({
                 region: region,
-                timestamp: new Date().toISOString(),
+                timestamp: now.toISOString(),
                 datetime: getCurrentDateTime()
             });
-            
-            // Sauvegarder dans le localStorage
-            localStorage.setItem('locationEntries', JSON.stringify(entries));
-            
-            // Mettre à jour l'affichage
-            displayEntries(entries);
         }
 
         // Fonction pour afficher les entrées
         function displayEntries(entries) {
             const historyList = document.getElementById('history-list');
             
-            if (entries.length === 0) {
+            if (!entries || Object.keys(entries).length === 0) {
                 historyList.innerHTML = '<p>Aucun passage enregistré récemment.</p>';
                 return;
             }
             
             historyList.innerHTML = '';
             
-            // Afficher les entrées récentes d'abord
-            entries.reverse().forEach(entry => {
+            // Convertir l'objet en tableau pour le tri
+            const entriesArray = Object.keys(entries).map(key => entries[key]);
+            
+            // Trier par date/heure (plus récent d'abord)
+            entriesArray.sort((a, b) => {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+            
+            // Afficher les entrées
+            entriesArray.forEach(entry => {
                 const entryElement = document.createElement('div');
                 entryElement.className = 'history-item';
                 entryElement.innerHTML = `
@@ -152,6 +180,23 @@
                 `;
                 historyList.appendChild(entryElement);
             });
+        }
+
+        // Fonction pour nettoyer la base de données des entrées anciennes
+        function cleanDatabase() {
+            passagesRef.once('value')
+                .then(snapshot => {
+                    const entries = snapshot.val();
+                    const cleanedEntries = cleanOldEntries(entries);
+                    
+                    // Si des entrées ont été supprimées, mettre à jour la base de données
+                    if (Object.keys(cleanedEntries).length < Object.keys(entries || {}).length) {
+                        passagesRef.set(cleanedEntries);
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors du nettoyage de la base de données:", error);
+                });
         }
 
         // Fonction principale pour gérer la géolocalisation
@@ -173,7 +218,7 @@
                         <p><strong>Date et heure:</strong> ${getCurrentDateTime()}</p>
                     `;
                     
-                    // Sauvegarder l'entrée
+                    // Sauvegarder l'entrée dans Firebase
                     saveEntry(region);
                     
                 }, (error) => {
@@ -184,10 +229,6 @@
                             <p>Erreur: ${error.message}</p>
                         </div>
                     `;
-                    
-                    // Charger quand même l'historique
-                    const entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
-                    displayEntries(cleanOldEntries(entries));
                 });
             } catch (error) {
                 console.error("Erreur:", error);
@@ -196,15 +237,21 @@
                         <p>Une erreur est survenue lors du traitement de votre position.</p>
                     </div>
                 `;
-                
-                // Charger quand même l'historique
-                const entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
-                displayEntries(cleanOldEntries(entries));
             }
         }
 
         // Démarrer l'application
         window.onload = function() {
+            // Écouter les changements dans la base de données
+            passagesRef.on('value', snapshot => {
+                const entries = snapshot.val();
+                displayEntries(entries);
+            });
+            
+            // Nettoyer la base de données des entrées anciennes
+            cleanDatabase();
+            
+            // Gérer la géolocalisation
             handleGeolocation();
         };
     </script>
