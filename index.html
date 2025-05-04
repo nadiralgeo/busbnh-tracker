@@ -730,3 +730,220 @@
                 document.getElementById('report-bus-btn').disabled = false;
             }
         }
+
+        </script>
+
+    <script>
+        // Ajoutez ce code à la fin de votre fichier JavaScript
+
+        // Gestion de la connexion
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog("Initialisation de l'application Bus Tracker");
+            
+            // Définir les éléments de l'interface de connexion
+            const loginOverlay = document.getElementById('login-overlay');
+            const accessCodeInput = document.getElementById('access-code');
+            const loginBtn = document.getElementById('login-btn');
+            const loginError = document.getElementById('login-error');
+            
+            // Vérifier si l'utilisateur est déjà authentifié (via localStorage)
+            const isAuthenticated = localStorage.getItem('busTracker_authenticated');
+            if (isAuthenticated === 'true') {
+                loginOverlay.style.display = 'none';
+                userAuthenticated = true;
+                initializeApp();
+                debugLog("Utilisateur déjà authentifié, initialisation de l'application");
+                return;
+            }
+            
+            // Événement pour le bouton de connexion
+            loginBtn.addEventListener('click', function() {
+                const enteredCode = accessCodeInput.value.trim();
+                
+                if (enteredCode === ACCESS_CODE) {
+                    debugLog("Code d'accès valide, authentification réussie");
+                    userAuthenticated = true;
+                    loginOverlay.style.display = 'none';
+                    
+                    // Sauvegarder l'état d'authentification
+                    localStorage.setItem('busTracker_authenticated', 'true');
+                    
+                    // Initialiser l'application
+                    initializeApp();
+                } else {
+                    debugLog("Tentative de connexion échouée: code d'accès invalide");
+                    loginError.textContent = "Code d'accès invalide. Veuillez réessayer.";
+                    setTimeout(() => {
+                        loginError.textContent = "";
+                    }, 3000);
+                }
+            });
+            
+            // Permettre de soumettre avec la touche "Entrée"
+            accessCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loginBtn.click();
+                }
+            });
+        });
+
+        // Fonction pour initialiser l'application après authentification
+        function initializeApp() {
+            debugLog("Initialisation de l'application après authentification");
+            
+            // Afficher le nom de la ligne de bus
+            document.getElementById('bus-line').textContent = BUS_LINE;
+            
+            // Charger les informations de destination
+            loadDestinationInfo();
+            
+            // Charger les arrêts de bus dans le sélecteur
+            loadBusStopSelector();
+            
+            // Vérifier si l'utilisateur a déjà signalé un bus aujourd'hui
+            checkPreviousReport();
+            
+            // Nettoyer la base de données des anciennes entrées
+            cleanDatabase();
+            
+            // Initialiser les écouteurs d'événements
+            document.getElementById('report-bus-btn').addEventListener('click', reportBusPassage);
+            document.getElementById('refresh-btn').addEventListener('click', refreshData);
+            
+            // Activer le toggle de débogage
+            const debugToggle = document.getElementById('debug-toggle');
+            const debugInfo = document.getElementById('debug-info');
+            debugToggle.addEventListener('click', function() {
+                if (debugInfo.style.display === 'block') {
+                    debugInfo.style.display = 'none';
+                    debugToggle.textContent = 'Afficher les infos de débogage';
+                } else {
+                    debugInfo.style.display = 'block';
+                    debugToggle.textContent = 'Masquer les infos de débogage';
+                }
+            });
+            
+            // Obtenir la position actuelle et charger les données de suivi
+            getCurrentPosition();
+        }
+
+        // Fonction pour actualiser les données
+        function refreshData() {
+            debugLog("Actualisation des données");
+            getCurrentPosition();
+        }
+
+        // Fonction pour obtenir la position actuelle
+        function getCurrentPosition() {
+            const currentLocationDiv = document.getElementById('current-location');
+            currentLocationDiv.innerHTML = '<p class="loading">Récupération de votre position...</p>';
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        // Succès
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+                        currentCoords = { latitude, longitude };
+                        
+                        // Trouver l'arrêt le plus proche
+                        nearestStop = findNearestBusStop(latitude, longitude);
+                        
+                        let locationName = "Position actuelle";
+                        if (nearestStop) {
+                            locationName = `Près de: ${nearestStop.name}`;
+                        }
+                        
+                        // Calculer la distance jusqu'à la destination
+                        const distanceToDestination = calculateDistance(
+                            latitude, longitude,
+                            DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+                        );
+                        
+                        currentLocationDiv.innerHTML = `
+                            <h3>Votre position</h3>
+                            <p><strong>Lieu:</strong> ${locationName}</p>
+                            <p><strong>Coordonnées:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                            <p><strong>Distance à la destination:</strong> <span class="distance">${distanceToDestination.toFixed(1)} km</span></p>
+                            <p><strong>Arrivée estimée:</strong> <span class="estimate">${estimateArrival(distanceToDestination)}</span></p>
+                        `;
+                        
+                        // Enregistrer l'entrée dans la base de données (si authentifié)
+                        if (userAuthenticated) {
+                            saveTrackingEntry(locationName, latitude, longitude);
+                        }
+                        
+                        // Récupérer et afficher les entrées de suivi
+                        loadTrackingEntries();
+                        
+                        debugLog("Position actuelle récupérée", { latitude, longitude, nearestStop });
+                    },
+                    function(error) {
+                        // Erreur
+                        debugLog("Erreur de géolocalisation", error);
+                        currentLocationDiv.innerHTML = `
+                            <h3>Votre position</h3>
+                            <div class="error">
+                                <p>Impossible de récupérer votre position.</p>
+                                <p>Erreur: ${getGeolocationErrorMessage(error)}</p>
+                                <p>Veuillez autoriser l'accès à votre position ou essayez de recharger la page.</p>
+                            </div>
+                        `;
+                    }
+                );
+            } else {
+                debugLog("La géolocalisation n'est pas prise en charge par ce navigateur");
+                currentLocationDiv.innerHTML = `
+                    <h3>Votre position</h3>
+                    <div class="error">
+                        <p>La géolocalisation n'est pas prise en charge par votre navigateur.</p>
+                        <p>Veuillez utiliser un navigateur plus récent.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Fonction pour obtenir un message d'erreur de géolocalisation plus lisible
+        function getGeolocationErrorMessage(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    return "Vous avez refusé l'accès à votre position.";
+                case error.POSITION_UNAVAILABLE:
+                    return "Les informations de position ne sont pas disponibles.";
+                case error.TIMEOUT:
+                    return "La demande de position a expiré.";
+                case error.UNKNOWN_ERROR:
+                    return "Une erreur inconnue s'est produite.";
+                default:
+                    return "Erreur inconnue.";
+            }
+        }
+
+        // Fonction pour charger les entrées de suivi depuis la base de données
+        function loadTrackingEntries() {
+            debugLog("Chargement des entrées de suivi depuis la base de données");
+            
+            if (!trackingRef) {
+                debugLog("Impossible de charger les entrées: référence Firebase non initialisée");
+                document.getElementById('tracking-data').innerHTML = '<tr><td colspan="4" class="error">Impossible de se connecter à la base de données.</td></tr>';
+                return;
+            }
+            
+            try {
+                trackingRef.once('value')
+                    .then(snapshot => {
+                        const entries = snapshot.val();
+                        displayTrackingEntries(entries);
+                    })
+                    .catch(error => {
+                        debugLog("Erreur lors du chargement des entrées de suivi", error);
+                        document.getElementById('tracking-data').innerHTML = '<tr><td colspan="4" class="error">Erreur lors du chargement des données de suivi.</td></tr>';
+                    });
+            } catch (error) {
+                debugLog("Erreur dans la fonction loadTrackingEntries", error);
+                document.getElementById('tracking-data').innerHTML = '<tr><td colspan="4" class="error">Une erreur s'est produite lors du chargement des données.</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>
