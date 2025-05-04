@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,6 +36,14 @@
             border-radius: 5px;
             border-left: 5px solid #1abc9c;
         }
+        .bus-action {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fef9e7;
+            border-radius: 5px;
+            border-left: 5px solid #f1c40f;
+            text-align: center;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -69,7 +77,7 @@
             font-weight: bold;
             color: #2980b9;
         }
-        .refresh-btn {
+        .refresh-btn, .report-btn {
             display: block;
             margin: 20px auto;
             padding: 10px 20px;
@@ -78,9 +86,23 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
         }
-        .refresh-btn:hover {
+        .report-btn {
+            background-color: #2ecc71;
+            width: 100%;
+            max-width: 300px;
+        }
+        .report-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .refresh-btn:hover, .report-btn:hover:not(:disabled) {
             background-color: #2980b9;
+        }
+        .report-btn:hover:not(:disabled) {
+            background-color: #27ae60;
         }
         .distance {
             font-weight: bold;
@@ -106,9 +128,98 @@
             color: #7f8c8d;
             cursor: pointer;
         }
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .login-box {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .login-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .login-error {
+            color: #e74c3c;
+            margin-top: 10px;
+        }
+        .bus-stop-selector {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .status-reported {
+            font-weight: bold;
+            color: #2ecc71;
+        }
+        .status-message {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        .status-success {
+            background-color: #d5f5e3;
+            color: #27ae60;
+            border: 1px solid #2ecc71;
+        }
+        .status-error {
+            background-color: #fadbd8;
+            color: #c0392b;
+            border: 1px solid #e74c3c;
+        }
+        .qr-hint {
+            font-size: 14px;
+            font-style: italic;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <h2>Bus Tracker - Accès</h2>
+            <p>Veuillez entrer le code d'accès pour continuer</p>
+            <input type="password" id="access-code" class="login-input" placeholder="Code d'accès (4247)" autocomplete="off">
+            <button id="login-btn" class="login-btn">Accéder</button>
+            <p id="login-error" class="login-error"></p>
+            <p class="qr-hint">Scannez le QR code à l'intérieur du bus pour accéder directement</p>
+        </div>
+    </div>
+
     <div class="container">
         <h1>Bus Tracker</h1>
         <div class="bus-line-info" style="text-align: center;">
@@ -116,36 +227,48 @@
         </div>
         
         <div id="current-location" class="location-info">
-            <p class="loading">Getting your location...</p>
+            <p class="loading">Récupération de votre position...</p>
         </div>
         
         <div class="destination-info" id="destination-info">
-            <p class="loading">Loading destination information...</p>
+            <p class="loading">Chargement des informations de destination...</p>
+        </div>
+
+        <!-- Nouveau: Section d'action de signalement du bus -->
+        <div class="bus-action" id="bus-action">
+            <h3>Signaler le passage du bus</h3>
+            <select id="bus-stop-selector" class="bus-stop-selector">
+                <option value="">Sélectionnez votre arrêt</option>
+                <!-- Options chargées dynamiquement -->
+            </select>
+            <button id="report-bus-btn" class="report-btn" disabled>Signaler le passage du bus à cet arrêt</button>
+            <div id="status-message" class="status-message"></div>
+            <p class="qr-hint">Vous ne pouvez signaler le passage du bus qu'une seule fois par jour</p>
         </div>
         
         <div class="history">
-            <h2>Bus Tracking Data (Last 24 Hours)</h2>
-            <p>Sorted by distance from final destination (farthest first)</p>
+            <h2>Données de suivi du bus (Dernières 24h)</h2>
+            <p>Triées par distance à la destination finale (plus éloignées d'abord)</p>
             <table id="tracking-table">
                 <thead>
                     <tr>
-                        <th>Location</th>
-                        <th>Time</th>
-                        <th>Distance to Final</th>
-                        <th>Est. Arrival</th>
+                        <th>Arrêt</th>
+                        <th>Heure</th>
+                        <th>Distance à l'arrivée</th>
+                        <th>Arrivée estimée</th>
                     </tr>
                 </thead>
                 <tbody id="tracking-data">
                     <tr>
-                        <td colspan="4" class="loading">Loading tracking data...</td>
+                        <td colspan="4" class="loading">Chargement des données de suivi...</td>
                     </tr>
                 </tbody>
             </table>
-            <button id="refresh-btn" class="refresh-btn">Refresh Data</button>
+            <button id="refresh-btn" class="refresh-btn">Actualiser les données</button>
         </div>
         
         <div id="debug-info" class="debug-info"></div>
-        <div class="debug-toggle" id="debug-toggle">Show Debug Info</div>
+        <div class="debug-toggle" id="debug-toggle">Afficher les infos de débogage</div>
     </div>
 
     <!-- Firebase App (core) -->
@@ -154,16 +277,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
 
     <script>
-        // CONFIGURATION: REPLACE THESE VALUES WITH YOUR SPECIFIC BUS LINE INFORMATION
+        // CONFIGURATION: REMPLACEZ CES VALEURS PAR LES INFORMATIONS SPÉCIFIQUES À VOTRE LIGNE DE BUS
         const BUS_LINE = "Line 4742";
         const DESTINATION_NAME = "Central Station";
         const DESTINATION_COORDS = {
-            latitude: 48.858844,  // Replace with actual coordinates
-            longitude: 2.294351   // Replace with actual coordinates
+            latitude: 48.858844,  // Remplacez par les coordonnées réelles
+            longitude: 2.294351   // Remplacez par les coordonnées réelles
         };
-        const BUS_ID = "bus-line-42"; // Unique ID for your bus line (for database)
+        const BUS_ID = "bus-line-42"; // ID unique pour votre ligne de bus (pour la base de données)
+        const ACCESS_CODE = "4247"; // Code d'accès pour protéger contre le vandalisme
         
-        // Debug logging function
+        // Définition des arrêts de bus (à personnaliser selon vos besoins)
+        const BUS_STOPS = [
+            { id: "stop1", name: "Départ - Place du Marché", lat: 48.872222, lng: 2.295556, radius: 200 },
+            { id: "stop2", name: "École Municipale", lat: 48.865983, lng: 2.293681, radius: 200 },
+            { id: "stop3", name: "Centre Commercial", lat: 48.862222, lng: 2.292778, radius: 200 },
+            { id: "stop4", name: "Bibliothèque", lat: 48.860611, lng: 2.293644, radius: 200 },
+            { id: "stop5", name: "Parc Municipal", lat: 48.859583, lng: 2.294082, radius: 200 },
+            { id: "destination", name: DESTINATION_NAME, lat: DESTINATION_COORDS.latitude, lng: DESTINATION_COORDS.longitude, radius: 200 }
+        ];
+        
+        // Fonction de journalisation du débogage
         function debugLog(message, data = null) {
             const debugInfo = document.getElementById('debug-info');
             const timestamp = new Date().toLocaleTimeString();
@@ -174,7 +308,7 @@
                     try {
                         logMessage += "\n" + JSON.stringify(data, null, 2);
                     } catch (e) {
-                        logMessage += "\n[Object couldn't be stringified]";
+                        logMessage += "\n[Objet non stringifiable]";
                     }
                 } else {
                     logMessage += "\n" + data;
@@ -185,7 +319,7 @@
             console.log(message, data);
         }
         
-        // Firebase configuration
+        // Configuration Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
             authDomain: "bustrack-cb124.firebaseapp.com",
@@ -196,36 +330,60 @@
             appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
         };
 
-        // Initialize Firebase
+        // Initialiser Firebase
         let database, trackingRef;
         try {
-            debugLog("Initializing Firebase...");
+            debugLog("Initialisation de Firebase...");
             firebase.initializeApp(firebaseConfig);
             database = firebase.database();
             trackingRef = database.ref('bustracking/' + BUS_ID);
-            debugLog("Firebase initialized successfully");
+            debugLog("Firebase initialisé avec succès");
             
-            // Test database connection
+            // Tester la connexion à la base de données
             database.app.INTERNAL.getToken()
                 .then(() => {
-                    debugLog("Firebase connection verified");
+                    debugLog("Connexion Firebase vérifiée");
                 })
                 .catch(error => {
-                    debugLog("Firebase connection error", error);
-                    showError("Could not connect to the database. Check your internet connection and try again.");
+                    debugLog("Erreur de connexion Firebase", error);
+                    showError("Impossible de se connecter à la base de données. Vérifiez votre connexion internet et réessayez.");
                 });
         } catch (error) {
-            debugLog("Firebase initialization error", error);
-            showError("Error initializing database. Please try again later.");
+            debugLog("Erreur d'initialisation Firebase", error);
+            showError("Erreur d'initialisation de la base de données. Veuillez réessayer plus tard.");
         }
         
-        // Set destination info in the UI
-        document.getElementById('bus-line').textContent = BUS_LINE;
-        
+        // Variables d'état
         let currentCoords = null;
-        let averageSpeed = 30; // km/h - default bus speed
+        let averageSpeed = 30; // km/h - vitesse de bus par défaut
+        let userAuthenticated = false;
+        let nearestStop = null;
+        let hasReportedToday = false;
 
-        // Function to show error messages
+        // Vérifier si l'utilisateur a déjà signalé un bus aujourd'hui
+        function checkPreviousReport() {
+            try {
+                const lastReport = localStorage.getItem('lastBusReport_' + BUS_ID);
+                if (lastReport) {
+                    const reportDate = new Date(lastReport);
+                    const today = new Date();
+                    
+                    if (reportDate.toDateString() === today.toDateString()) {
+                        hasReportedToday = true;
+                        document.getElementById('report-bus-btn').disabled = true;
+                        document.getElementById('report-bus-btn').textContent = "Vous avez déjà signalé un passage aujourd'hui";
+                        debugLog("L'utilisateur a déjà signalé un bus aujourd'hui");
+                        return true;
+                    }
+                }
+                return false;
+            } catch (error) {
+                debugLog("Erreur lors de la vérification des rapports précédents", error);
+                return false;
+            }
+        }
+
+        // Fonction pour afficher les messages d'erreur
         function showError(message, elementId = 'tracking-data') {
             const element = document.getElementById(elementId);
             if (element) {
@@ -235,13 +393,30 @@
                     element.innerHTML = `<div class="error">${message}</div>`;
                 }
             }
-            debugLog("ERROR: " + message);
+            debugLog("ERREUR: " + message);
         }
 
-        // Function to get current date and time formatted
+        // Fonction pour afficher un message de statut
+        function showStatusMessage(message, isSuccess = true) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.style.display = 'block';
+            
+            if (isSuccess) {
+                statusElement.className = 'status-message status-success';
+            } else {
+                statusElement.className = 'status-message status-error';
+            }
+            
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // Fonction pour obtenir la date et l'heure actuelles formatées
         function getCurrentDateTime() {
             const now = new Date();
-            return now.toLocaleString('en-US', {
+            return now.toLocaleString('fr-FR', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
@@ -251,9 +426,9 @@
             });
         }
 
-        // Function to calculate distance between two coordinates (Haversine formula)
+        // Fonction pour calculer la distance entre deux coordonnées (formule de Haversine)
         function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Radius of the earth in km
+            const R = 6371; // Rayon de la terre en km
             const dLat = deg2rad(lat2 - lat1);
             const dLon = deg2rad(lon2 - lon1);
             const a = 
@@ -261,7 +436,7 @@
                 Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
                 Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-            const distance = R * c; // Distance in km
+            const distance = R * c; // Distance en km
             return distance;
         }
         
@@ -269,7 +444,7 @@
             return deg * (Math.PI/180);
         }
 
-        // Function to estimate arrival time based on distance and average speed
+        // Fonction pour estimer l'heure d'arrivée en fonction de la distance et de la vitesse moyenne
         function estimateArrival(distanceKm) {
             const timeHours = distanceKm / averageSpeed;
             const timeMinutes = timeHours * 60;
@@ -277,44 +452,52 @@
             const now = new Date();
             const arrivalTime = new Date(now.getTime() + timeMinutes * 60000);
             
-            return arrivalTime.toLocaleTimeString('en-US', {
+            return arrivalTime.toLocaleTimeString('fr-FR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false
             });
         }
 
-        // Function to get location name from coordinates
-        async function getLocationNameFromCoordinates(latitude, longitude) {
-            try {
-                // This is a placeholder - you would need to implement a reverse geocoding API call here
-                // For example, using Google Maps Geocoding API or a similar service
-                // For now, we'll return a generic location name
-                return "Location at " + latitude.toFixed(4) + ", " + longitude.toFixed(4);
-            } catch (error) {
-                debugLog("Error getting location name", error);
-                return "Unknown location";
+        // Fonction pour trouver l'arrêt de bus le plus proche
+        function findNearestBusStop(latitude, longitude) {
+            let nearestStop = null;
+            let shortestDistance = Infinity;
+            
+            BUS_STOPS.forEach(stop => {
+                const distance = calculateDistance(latitude, longitude, stop.lat, stop.lng);
+                if (distance < shortestDistance) {
+                    shortestDistance = distance;
+                    nearestStop = stop;
+                }
+            });
+            
+            // Vérifier si l'utilisateur est dans le rayon de l'arrêt
+            if (shortestDistance <= (nearestStop.radius / 1000)) { // Convertir le rayon de mètres en km
+                return nearestStop;
             }
+            
+            return null;
         }
 
-        // Function to clean entries older than 24 hours
+        // Fonction pour nettoyer les entrées de plus de 24 heures
         function cleanDatabase() {
-            debugLog("Cleaning database of old entries");
+            debugLog("Nettoyage de la base de données des anciennes entrées");
 
             if (!trackingRef) {
-                debugLog("Cannot clean database: Firebase reference not initialized");
+                debugLog("Impossible de nettoyer la base de données: référence Firebase non initialisée");
                 return;
             }
 
             try {
-                // Read all entries ONCE to identify old ones
+                // Lire toutes les entrées UNE FOIS pour identifier les anciennes
                 trackingRef.once('value')
                     .then(snapshot => {
                         const entries = snapshot.val();
-                        debugLog(`Database has ${entries ? Object.keys(entries).length : 0} entries before cleaning`);
+                        debugLog(`La base de données contient ${entries ? Object.keys(entries).length : 0} entrées avant le nettoyage`);
 
                         if (!entries) {
-                            debugLog("No entries to clean");
+                            debugLog("Pas d'entrées à nettoyer");
                             return;
                         }
 
@@ -322,55 +505,92 @@
                         const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
                         let cleanedCount = 0;
 
-                        // Iterate through entries and remove old ones
+                        // Parcourir les entrées et supprimer les anciennes
                         Object.keys(entries).forEach(key => {
                             const entry = entries[key];
                             if (!entry || !entry.timestamp) {
-                                // If entry is invalid, maybe remove it too? Or just ignore.
-                                // For now, let's just log and ignore invalid entries.
-                                debugLog(`Skipping invalid entry with key: ${key}`, entry);
+                                debugLog(`Ignorer l'entrée invalide avec la clé: ${key}`, entry);
                                 return;
                             }
 
                             const entryDate = new Date(entry.timestamp);
 
                             if (entryDate < twentyFourHoursAgo) {
-                                // This entry is older than 24 hours, remove it
-                                const entryToRemoveRef = trackingRef.child(key); // Get a reference to the specific old entry
-                                entryToRemoveRef.remove() // Use .remove() on the child reference
+                                // Cette entrée date de plus de 24 heures, la supprimer
+                                const entryToRemoveRef = trackingRef.child(key);
+                                entryToRemoveRef.remove()
                                     .then(() => {
-                                        debugLog(`Removed old entry with key: ${key}`);
+                                        debugLog(`Ancienne entrée supprimée avec la clé: ${key}`);
                                         cleanedCount++;
                                     })
                                     .catch(error => {
-                                        debugLog(`Error removing entry with key ${key}`, error);
+                                        debugLog(`Erreur lors de la suppression de l'entrée avec la clé ${key}`, error);
                                     });
                             }
                         });
 
                         if (cleanedCount > 0) {
-                             debugLog(`Finished cleaning. Removed ${cleanedCount} old entries.`);
+                            debugLog(`Nettoyage terminé. ${cleanedCount} anciennes entrées ont été supprimées.`);
                         } else {
-                             debugLog("No old entries found to remove.");
+                            debugLog("Aucune ancienne entrée trouvée à supprimer.");
                         }
                     })
                     .catch(error => {
-                        debugLog("Error fetching database entries for cleaning", error);
-                        // Maybe don't show a user-facing error for this background task?
-                        // showError("Error checking for old tracking data.");
+                        debugLog("Erreur lors de la récupération des entrées de la base de données pour le nettoyage", error);
                     });
             } catch (error) {
-                debugLog("Error in cleanDatabase function execution", error);
-                // showError("An internal error occurred during database cleaning.");
+                debugLog("Erreur dans l'exécution de la fonction cleanDatabase", error);
             }
         }
 
-        // Function to save a new tracking entry
-        function saveTrackingEntry(locationName, latitude, longitude) {
-            debugLog(`Saving tracking entry: ${locationName} (${latitude}, ${longitude})`);
+        // Fonction pour signaler le passage du bus
+        function reportBusPassage() {
+            if (hasReportedToday) {
+                showStatusMessage("Vous avez déjà signalé un passage aujourd'hui", false);
+                return;
+            }
+            
+            const busStopSelector = document.getElementById('bus-stop-selector');
+            const selectedStopId = busStopSelector.value;
+            
+            if (!selectedStopId) {
+                showStatusMessage("Veuillez sélectionner un arrêt de bus", false);
+                return;
+            }
+            
+            const selectedStop = BUS_STOPS.find(stop => stop.id === selectedStopId);
+            if (!selectedStop) {
+                showStatusMessage("Arrêt non trouvé", false);
+                return;
+            }
+            
+            try {
+                debugLog(`Signalement du passage du bus à: ${selectedStop.name}`);
+                
+                // Enregistrer le rapport dans la base de données
+                saveTrackingEntry(selectedStop.name, selectedStop.lat, selectedStop.lng, true);
+                
+                // Marquer l'utilisateur comme ayant signalé aujourd'hui
+                localStorage.setItem('lastBusReport_' + BUS_ID, new Date().toISOString());
+                hasReportedToday = true;
+                
+                // Mettre à jour l'interface utilisateur
+                document.getElementById('report-bus-btn').disabled = true;
+                document.getElementById('report-bus-btn').textContent = "Passage signalé aujourd'hui";
+                
+                showStatusMessage("Merci! Le passage du bus a été signalé avec succès.", true);
+            } catch (error) {
+                debugLog("Erreur lors du signalement du passage du bus", error);
+                showStatusMessage("Erreur lors du signalement du passage du bus. Veuillez réessayer.", false);
+            }
+        }
+
+        // Fonction pour enregistrer une nouvelle entrée de suivi
+        function saveTrackingEntry(locationName, latitude, longitude, isBusReport = false) {
+            debugLog(`Enregistrement d'une entrée de suivi: ${locationName} (${latitude}, ${longitude})`);
             
             if (!trackingRef) {
-                debugLog("Cannot save tracking entry: Firebase reference not initialized");
+                debugLog("Impossible d'enregistrer l'entrée de suivi: référence Firebase non initialisée");
                 return;
             }
             
@@ -383,37 +603,38 @@
                     latitude: latitude,
                     longitude: longitude,
                     timestamp: now.toISOString(),
-                    datetime: getCurrentDateTime()
+                    datetime: getCurrentDateTime(),
+                    isBusReport: isBusReport
                 };
                 
                 newEntryRef.set(entryData)
                     .then(() => {
-                        debugLog("Entry saved successfully");
+                        debugLog("Entrée enregistrée avec succès");
                     })
                     .catch(error => {
-                        debugLog("Error saving entry", error);
-                        showError("Failed to save your location. Please try again.");
+                        debugLog("Erreur lors de l'enregistrement de l'entrée", error);
+                        showError("Échec de l'enregistrement de votre position. Veuillez réessayer.");
                     });
             } catch (error) {
-                debugLog("Error creating entry", error);
-                showError("An error occurred while saving your location.");
+                debugLog("Erreur lors de la création de l'entrée", error);
+                showError("Une erreur s'est produite lors de l'enregistrement de votre position.");
             }
         }
 
-        // Function to display tracking entries sorted by distance
+        // Fonction pour afficher les entrées de suivi triées par distance
         function displayTrackingEntries(entries) {
-            debugLog("Displaying tracking entries", entries);
+            debugLog("Affichage des entrées de suivi", entries);
             const trackingDataTable = document.getElementById('tracking-data');
             
             if (!entries || Object.keys(entries).length === 0) {
-                trackingDataTable.innerHTML = '<tr><td colspan="4">No tracking data available yet. Click "Refresh Data" to record your current location.</td></tr>';
+                trackingDataTable.innerHTML = '<tr><td colspan="4">Aucune donnée de suivi disponible pour l\'instant. Cliquez sur "Actualiser les données" pour enregistrer votre position actuelle.</td></tr>';
                 return;
             }
             
             try {
                 trackingDataTable.innerHTML = '';
                 
-                // Convert object to array and calculate distances
+                // Convertir l'objet en tableau et calculer les distances
                 const entriesArray = Object.keys(entries).map(key => {
                     const entry = entries[key];
                     if (!entry || !entry.latitude || !entry.longitude) {
@@ -433,20 +654,26 @@
                 }).filter(entry => entry !== null);
                 
                 if (entriesArray.length === 0) {
-                    trackingDataTable.innerHTML = '<tr><td colspan="4">No valid tracking data available.</td></tr>';
+                    trackingDataTable.innerHTML = '<tr><td colspan="4">Aucune donnée de suivi valide disponible.</td></tr>';
                     return;
                 }
                 
-                // Sort by distance (farthest first)
+                // Trier par distance (plus éloignées d'abord)
                 entriesArray.sort((a, b) => b.distance - a.distance);
                 
-                // Display the entries
+                // Afficher les entrées
                 entriesArray.forEach(entry => {
                     const row = document.createElement('tr');
                     
+                    let locationCell = entry.locationName || "Inconnu";
+                    // Ajouter un indicateur si c'est un rapport de bus
+                    if (entry.isBusReport) {
+                        locationCell = `<span class="status-reported">${locationCell} ✓</span>`;
+                    }
+                    
                     row.innerHTML = `
-                        <td>${entry.locationName || "Unknown"}</td>
-                        <td>${entry.datetime || "Unknown"}</td>
+                        <td>${locationCell}</td>
+                        <td>${entry.datetime || "Inconnu"}</td>
                         <td><span class="distance">${entry.distance.toFixed(1)} km</span></td>
                         <td><span class="estimate">${entry.estimatedArrival}</span></td>
                     `;
@@ -454,304 +681,52 @@
                     trackingDataTable.appendChild(row);
                 });
                 
-                debugLog(`Displayed ${entriesArray.length} entries`);
+                debugLog(`${entriesArray.length} entrées affichées`);
             } catch (error) {
-                debugLog("Error displaying tracking entries", error);
-                trackingDataTable.innerHTML = '<tr><td colspan="4" class="error">Error displaying tracking data. Please refresh the page.</td></tr>';
+                debugLog("Erreur lors de l'affichage des entrées de suivi", error);
+                trackingDataTable.innerHTML = '<tr><td colspan="4" class="error">Erreur lors de l\'affichage des données de suivi. Veuillez actualiser la page.</td></tr>';
             }
         }
 
-        // Function to load and display destination information
+        // Fonction pour charger et afficher les informations de destination
         async function loadDestinationInfo() {
-            debugLog("Loading destination information");
+            debugLog("Chargement des informations de destination");
             const destinationDiv = document.getElementById('destination-info');
             
             try {
-                // Get destination name from coordinates if not already defined
+                // Récupérer le nom de la destination à partir des coordonnées si non déjà défini
                 let destinationLocationName = DESTINATION_NAME;
-                if (!destinationLocationName || destinationLocationName === "") {
-                    destinationLocationName = await getLocationNameFromCoordinates(
-                        DESTINATION_COORDS.latitude, 
-                        DESTINATION_COORDS.longitude
-                    );
-                }
                 
                 destinationDiv.innerHTML = `
-                    <h3>Final Destination</h3>
-                    <p><strong>Location:</strong> ${destinationLocationName}</p>
-                    <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
+                    <h3>Destination Finale</h3>
+                    <p><strong>Lieu:</strong> ${destinationLocationName}</p>
+                    <p><strong>Coordonnées:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
                 `;
-                debugLog("Destination info loaded", { name: destinationLocationName, coords: DESTINATION_COORDS });
+                debugLog("Informations de destination chargées", { name: destinationLocationName, coords: DESTINATION_COORDS });
             } catch (error) {
-                debugLog("Error loading destination info", error);
+                debugLog("Erreur lors du chargement des informations de destination", error);
                 destinationDiv.innerHTML = `
-                    <h3>Final Destination</h3>
+                    <h3>Destination Finale</h3>
                     <p>${DESTINATION_NAME}</p>
-                    <p class="error">Error loading additional destination info.</p>
+                    <p class="error">Erreur lors du chargement des informations supplémentaires sur la destination.</p>
                 `;
             }
         }
 
-        // Function to handle geolocation
-        async function handleGeolocation() {
-            debugLog("Requesting geolocation permission");
-            const currentLocationDiv = document.getElementById('current-location');
+        // Charger les arrêts de bus dans le sélecteur
+        function loadBusStopSelector() {
+            const selector = document.getElementById('bus-stop-selector');
+            selector.innerHTML = '<option value="">Sélectionnez votre arrêt</option>';
             
-            try {
-                if (!navigator.geolocation) {
-                    throw new Error("Geolocation is not supported by your browser");
-                }
-                
-                // Request geolocation with a clearer progress message
-                currentLocationDiv.innerHTML = `
-                    <h3>Location Detection</h3>
-                    <p class="loading">Getting your location... (Please allow location access if prompted)</p>
-                `;
-                
-                const positionPromise = new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        timeout: 15000,  // Increased timeout
-                        maximumAge: 0
-                    });
-                });
-                
-                // Use a timeout to detect when geolocation is taking too long
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error("Location request timed out")), 16000);
-                });
-                
-                // Race the geolocation and timeout promises
-                const position = await Promise.race([positionPromise, timeoutPromise]);
-                
-                debugLog("Geolocation received", position.coords);
-                const { latitude, longitude } = position.coords;
-                currentCoords = { latitude, longitude };
-                
-                // Get location name
-                let locationName = "Unknown location";
-                try {
-                    locationName = await getLocationNameFromCoordinates(latitude, longitude);
-                } catch (locError) {
-                    debugLog("Error getting location name", locError);
-                    // Continue with "Unknown location" if this fails
-                }
-                
-                // Calculate distance to destination
-                const distance = calculateDistance(
-                    latitude, longitude,
-                    DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
-                );
-                
-                // Display current location
-                currentLocationDiv.innerHTML = `
-                    <h3>Your Location Recorded</h3>
-                    <p><strong>Location:</strong> ${locationName}</p>
-                    <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
-                    <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
-                    <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
-                    <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
-                `;
-                
-                // Save tracking entry
-                saveTrackingEntry(locationName, latitude, longitude);
-                
-            } catch (error) {
-                debugLog("Geolocation error", error);
-                let errorMsg = "Unknown error";
-                
-                if (error.code) {
-                    // Handle standard geolocation errors
-                    switch(error.code) {
-                        case 1: // PERMISSION_DENIED
-                            errorMsg = "Location access was denied. Please enable location services in your browser settings and refresh this page.";
-                            break;
-                        case 2: // POSITION_UNAVAILABLE
-                            errorMsg = "Location information is currently unavailable. Please check your device's GPS or network connection.";
-                            break;
-                        case 3: // TIMEOUT
-                            errorMsg = "The location request timed out. Please try again or check your connection.";
-                            break;
-                        default:
-                            errorMsg = `Error code: ${error.code}. ${error.message}`;
-                    }
-                } else {
-                    // Handle other errors
-                    errorMsg = error.message || "Failed to determine your location";
-                }
-                
-                currentLocationDiv.innerHTML = `
-                    <h3>Location Error</h3>
-                    <div class="error">
-                        <p>${errorMsg}</p>
-                        <p>Please check that location services are enabled for this website and try again.</p>
-                        <button id="retry-location" class="refresh-btn">Try Again</button>
-                    </div>
-                `;
-                
-                // Add event listener to the retry button
-                document.getElementById('retry-location')?.addEventListener('click', () => {
-                    handleGeolocation();
-                });
-            }
-        }
-
-        // Fonction pour tester manuellement la géolocalisation
-        function testGeolocation() {
-            debugLog("Testing geolocation manually");
-            
-            // Créer des coordonnées fictives (à proximité de vos coordonnées de destination)
-            const mockPosition = {
-                coords: {
-                    latitude: DESTINATION_COORDS.latitude + (Math.random() - 0.5) * 0.01,
-                    longitude: DESTINATION_COORDS.longitude + (Math.random() - 0.5) * 0.01,
-                    accuracy: 10
-                }
-            };
-            
-            // Traiter ces coordonnées comme si elles venaient de l'API de géolocalisation
-            const currentLocationDiv = document.getElementById('current-location');
-            const { latitude, longitude } = mockPosition.coords;
-            currentCoords = { latitude, longitude };
-            
-            // Utiliser des valeurs par défaut pour continuer
-            const locationName = "Test Location (Manual)";
-            
-            // Calculer la distance
-            const distance = calculateDistance(
-                latitude, longitude,
-                DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
-            );
-            
-            // Afficher la position
-            currentLocationDiv.innerHTML = `
-                <h3>Test Location (Manual Override)</h3>
-                <p><strong>Location:</strong> ${locationName}</p>
-                <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
-                <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
-                <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
-                <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
-                <p class="error">This is a test location. Real geolocation is not working.</p>
-            `;
-            
-            // Enregistrer cette entrée
-            saveTrackingEntry(locationName, latitude, longitude);
-            
-            debugLog("Manual geolocation test completed", mockPosition.coords);
-        }
-
-        // Start the application
-        window.onload = function() {
-            debugLog("Application started");
-            
-            // Load destination info
-            loadDestinationInfo();
-            
-            // Clean old entries
-            cleanDatabase();
-            
-            // Handle geolocation
-            handleGeolocation();
-            
-            // Listen for tracking data changes
-            if (trackingRef) {
-                debugLog("Setting up Firebase listener");
-                trackingRef.on('value', snapshot => {
-                    debugLog("Firebase data updated");
-                    displayTrackingEntries(snapshot.val());
-                }, error => {
-                    debugLog("Firebase listener error", error);
-                    showError("Error receiving tracking data: " + error.message);
-                });
-            } else {
-                debugLog("Cannot set up Firebase listener: reference not initialized");
-                showError("Database connection not established. Please refresh the page.");
-            }
-            
-            // Set up event listeners
-            document.getElementById('refresh-btn').addEventListener('click', () => {
-                debugLog("Refresh button clicked");
-                handleGeolocation();
-                
-                if (trackingRef) {
-                    trackingRef.once('value')
-                        .then(snapshot => {
-                            displayTrackingEntries(snapshot.val());
-                        })
-                        .catch(error => {
-                            debugLog("Error fetching tracking data", error);
-                            showError("Error refreshing data: " + error.message);
-                        });
-                }
+            BUS_STOPS.forEach(stop => {
+                const option = document.createElement('option');
+                option.value = stop.id;
+                option.textContent = stop.name;
+                selector.appendChild(option);
             });
             
-            // Set up debug toggle
-            const debugToggle = document.getElementById('debug-toggle');
-            const debugInfo = document.getElementById('debug-info');
-            
-            // Ajouter un bouton de test de géolocalisation dans le mode debug
-            const geoTestButton = document.createElement('button');
-            geoTestButton.textContent = 'Test avec Position Fictive';
-            geoTestButton.className = 'refresh-btn';
-            geoTestButton.style.backgroundColor = '#9b59b6';
-            geoTestButton.addEventListener('click', testGeolocation);
-            debugInfo.parentNode.insertBefore(geoTestButton, debugInfo);
-            geoTestButton.style.display = 'none';
-            
-            debugToggle.addEventListener('click', () => {
-                if (debugInfo.style.display === 'block') {
-                    debugInfo.style.display = 'none';
-                    debugToggle.textContent = 'Show Debug Info';
-                } else {
-                    debugInfo.style.display = 'block';
-                    debugToggle.textContent = 'Hide Debug Info';
-                }
-                
-                // Mettre à jour l'affichage du bouton avec le toggle de debug
-                if (geoTestButton.style.display === 'block') {
-                    geoTestButton.style.display = 'none';
-                } else {
-                    geoTestButton.style.display = 'block';
-                }
-            });
-            
-            // Add test entry button (only in debug mode)
-            const testButton = document.createElement('button');
-            testButton.textContent = 'Create Test Entry';
-            testButton.className = 'refresh-btn';
-            testButton.style.backgroundColor = '#e74c3c';
-            testButton.addEventListener('click', createTestEntry);
-            debugInfo.parentNode.insertBefore(testButton, debugInfo);
-            testButton.style.display = 'none';
-            
-            debugToggle.addEventListener('click', () => {
-                if (testButton.style.display === 'block') {
-                    testButton.style.display = 'none';
-                } else {
-                    testButton.style.display = 'block';
-                }
-            });
-        };
-
-        // Create a test entry function (for debugging)
-        function createTestEntry() {
-            debugLog("Creating a test entry");
-            
-            if (!trackingRef) {
-                debugLog("Cannot create test entry: Firebase reference not initialized");
-                return;
+            // Activer le bouton de signalement si l'utilisateur n'a pas encore signalé aujourd'hui
+            if (!hasReportedToday) {
+                document.getElementById('report-bus-btn').disabled = false;
             }
-            
-            // Create a slightly random position near the destination
-            const randomOffset = (Math.random() - 0.5) * 0.01; // about 1km
-            const testLocation = {
-                latitude: DESTINATION_COORDS.latitude + randomOffset,
-                longitude: DESTINATION_COORDS.longitude + randomOffset
-            };
-            
-            saveTrackingEntry("Test Location", testLocation.latitude, testLocation.longitude);
-            debugLog("Test entry created", testLocation);
         }
-    </script>
-</body>
-</html>
