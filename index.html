@@ -304,15 +304,12 @@
             });
         }
 
-        // Function to get location name from coordinates (using a reverse geocoding API)
+        // Fonction pour obtenir le nom de l'emplacement à partir des coordonnées
         async function getLocationNameFromCoordinates(latitude, longitude) {
             try {
-                // Remplacez cette URL par celle de votre API de géocodage inverse
-                const response = await fetch(`https://api.example.com/geocode?lat=${latitude}&lon=${longitude}`);
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
                 const data = await response.json();
-                
-                // Supposons que l'API retourne un champ "name" avec le nom de l'emplacement
-                return data.name || "Unknown location";
+                return data.display_name || "Unknown location";
             } catch (error) {
                 debugLog("Error getting location name", error);
                 return "Unknown location";
@@ -448,7 +445,7 @@
                 }
                 
                 // Display the entries
-                for (const entry of entriesArray) {
+                entriesArray.forEach(async entry => {
                     const row = document.createElement('tr');
                     
                     // Obtenir le nom de l'emplacement à partir des coordonnées
@@ -461,7 +458,7 @@
                     `;
                     
                     trackingDataTable.appendChild(row);
-                }
+                });
                 
                 debugLog(`Displayed ${entriesArray.length} entries`);
             } catch (error) {
