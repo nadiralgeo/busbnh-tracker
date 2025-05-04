@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page de Géolocalisation</title>
+    <title>Bus Tracker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,7 +18,7 @@
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        h1 {
+        h1, h2 {
             color: #2c3e50;
             text-align: center;
         }
@@ -29,14 +29,28 @@
             border-radius: 5px;
             border-left: 5px solid #3498db;
         }
-        .history {
-            margin-top: 30px;
-        }
-        .history-item {
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #ecf0f1;
+        .destination-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f8f5;
             border-radius: 5px;
+            border-left: 5px solid #1abc9c;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
         }
         .loading {
             text-align: center;
@@ -51,162 +65,693 @@
             border-radius: 5px;
             margin-top: 20px;
         }
+        .estimate {
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+        .distance {
+            font-weight: bold;
+        }
+        .bus-line {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9e79f;
+            border-radius: 5px;
+            border-left: 5px solid #f1c40f;
+            font-family: monospace;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .debug-toggle {
+            margin-top: 20px;
+            text-align: center;
+            color: #7f8c8d;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Registre de Passage</h1>
+        <h1>Bus Tracker</h1>
+        <div class="bus-line-info" style="text-align: center;">
+            <span class="bus-line" id="bus-line"></span>
+        </div>
         
         <div id="current-location" class="location-info">
-            <p class="loading">Recherche de votre position...</p>
+            <p class="loading">Getting your location...</p>
+        </div>
+        
+        <div class="destination-info" id="destination-info">
+            <p class="loading">Loading destination information...</p>
         </div>
         
         <div class="history">
-            <h2>Passages récents (dernières 24h)</h2>
-            <div id="history-list">
-                <p class="loading">Chargement de l'historique...</p>
-            </div>
+            <h2>Bus Tracking Data (Last 24 Hours)</h2>
+            <p>Sorted by distance from final destination (farthest first)</p>
+            <table id="tracking-table">
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Time</th>
+                        <th>Distance to Final</th>
+                        <th>Est. Arrival</th>
+                    </tr>
+                </thead>
+                <tbody id="tracking-data">
+                    <tr>
+                        <td colspan="4" class="loading">Loading tracking data...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <button id="refresh-btn" class="refresh-btn">Refresh Data</button>
         </div>
+        
+        <div id="debug-info" class="debug-info"></div>
+        <div class="debug-toggle" id="debug-toggle">Show Debug Info</div>
     </div>
 
+    <!-- Firebase App (core) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
+
     <script>
-        // Fonction pour obtenir la date et l'heure actuelles formatées
+        // CONFIGURATION: REPLACE THESE VALUES WITH YOUR SPECIFIC BUS LINE INFORMATION
+        const BUS_LINE = "Line 4742";
+        const DESTINATION_NAME = "Central Station";
+        const DESTINATION_COORDS = {
+            latitude: 48.858844,  // Replace with actual coordinates
+            longitude: 2.294351   // Replace with actual coordinates
+        };
+        const BUS_ID = "bus-line-42"; // Unique ID for your bus line (for database)
+        
+        // Debug logging function
+        function debugLog(message, data = null) {
+            const debugInfo = document.getElementById('debug-info');
+            const timestamp = new Date().toLocaleTimeString();
+            let logMessage = `[${timestamp}] ${message}`;
+            
+            if (data) {
+                if (typeof data === 'object') {
+                    try {
+                        logMessage += "\n" + JSON.stringify(data, null, 2);
+                    } catch (e) {
+                        logMessage += "\n[Object couldn't be stringified]";
+                    }
+                } else {
+                    logMessage += "\n" + data;
+                }
+            }
+            
+            debugInfo.innerHTML += logMessage + "\n\n";
+            console.log(message, data);
+        }
+        
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
+            authDomain: "bustrack-cb124.firebaseapp.com",
+            databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
+            projectId: "bustrack-cb124",
+            storageBucket: "bustrack-cb124.firebasestorage.app",
+            messagingSenderId: "1010286119665",
+            appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
+        };
+
+        // Initialize Firebase
+        let database, trackingRef;
+        try {
+            debugLog("Initializing Firebase...");
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            trackingRef = database.ref('bustracking/' + BUS_ID);
+            debugLog("Firebase initialized successfully");
+            
+            // Test database connection
+            database.app.INTERNAL.getToken()
+                .then(() => {
+                    debugLog("Firebase connection verified");
+                })
+                .catch(error => {
+                    debugLog("Firebase connection error", error);
+                    showError("Could not connect to the database. Check your internet connection and try again.");
+                });
+        } catch (error) {
+            debugLog("Firebase initialization error", error);
+            showError("Error initializing database. Please try again later.");
+        }
+        
+        // Set destination info in the UI
+        document.getElementById('bus-line').textContent = BUS_LINE;
+        
+        let currentCoords = null;
+        let averageSpeed = 30; // km/h - default bus speed
+
+        // Function to show error messages
+        function showError(message, elementId = 'tracking-data') {
+            const element = document.getElementById(elementId);
+            if (element) {
+                if (elementId === 'tracking-data') {
+                    element.innerHTML = `<tr><td colspan="4" class="error">${message}</td></tr>`;
+                } else {
+                    element.innerHTML = `<div class="error">${message}</div>`;
+                }
+            }
+            debugLog("ERROR: " + message);
+        }
+
+        // Function to get current date and time formatted
         function getCurrentDateTime() {
             const now = new Date();
-            return now.toLocaleString('fr-FR', {
+            return now.toLocaleString('en-US', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                hour12: false
             });
         }
 
-        // Fonction pour nettoyer les entrées de plus de 24 heures
-        function cleanOldEntries(entries) {
-            const now = new Date();
-            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        // Function to calculate distance between two coordinates (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of the earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            const distance = R * c; // Distance in km
+            return distance;
+        }
+        
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+
+        // Function to estimate arrival time based on distance and average speed
+        function estimateArrival(distanceKm) {
+            const timeHours = distanceKm / averageSpeed;
+            const timeMinutes = timeHours * 60;
             
-            return entries.filter(entry => {
-                const entryDate = new Date(entry.timestamp);
-                return entryDate > twentyFourHoursAgo;
+            const now = new Date();
+            const arrivalTime = new Date(now.getTime() + timeMinutes * 60000);
+            
+            return arrivalTime.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
             });
         }
 
-        // Fonction pour récupérer la région à partir des coordonnées
-        async function getRegionFromCoordinates(lat, lon) {
+        // Function to get location name from coordinates
+        async function getLocationNameFromCoordinates(latitude, longitude) {
             try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=8&addressdetails=1`);
-                const data = await response.json();
-                
-                // Tenter d'extraire la région
-                const region = data.address.state || data.address.county || data.address.city || "Région inconnue";
-                return region;
+                // This is a placeholder - you would need to implement a reverse geocoding API call here
+                // For example, using Google Maps Geocoding API or a similar service
+                // For now, we'll return a generic location name
+                return "Location at " + latitude.toFixed(4) + ", " + longitude.toFixed(4);
             } catch (error) {
-                console.error("Erreur lors de la recherche de la région:", error);
-                return "Région inconnue";
+                debugLog("Error getting location name", error);
+                return "Unknown location";
             }
         }
 
-        // Fonction pour sauvegarder une nouvelle entrée
-        function saveEntry(region) {
-            // Récupérer les entrées existantes
-            let entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
-            
-            // Nettoyer les anciennes entrées
-            entries = cleanOldEntries(entries);
-            
-            // Ajouter la nouvelle entrée
-            entries.push({
-                region: region,
-                timestamp: new Date().toISOString(),
-                datetime: getCurrentDateTime()
-            });
-            
-            // Sauvegarder dans le localStorage
-            localStorage.setItem('locationEntries', JSON.stringify(entries));
-            
-            // Mettre à jour l'affichage
-            displayEntries(entries);
+        // Function to clean entries older than 24 hours
+        function cleanDatabase() {
+            debugLog("Cleaning database of old entries");
+
+            if (!trackingRef) {
+                debugLog("Cannot clean database: Firebase reference not initialized");
+                return;
+            }
+
+            try {
+                // Read all entries ONCE to identify old ones
+                trackingRef.once('value')
+                    .then(snapshot => {
+                        const entries = snapshot.val();
+                        debugLog(`Database has ${entries ? Object.keys(entries).length : 0} entries before cleaning`);
+
+                        if (!entries) {
+                            debugLog("No entries to clean");
+                            return;
+                        }
+
+                        const now = new Date();
+                        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                        let cleanedCount = 0;
+
+                        // Iterate through entries and remove old ones
+                        Object.keys(entries).forEach(key => {
+                            const entry = entries[key];
+                            if (!entry || !entry.timestamp) {
+                                // If entry is invalid, maybe remove it too? Or just ignore.
+                                // For now, let's just log and ignore invalid entries.
+                                debugLog(`Skipping invalid entry with key: ${key}`, entry);
+                                return;
+                            }
+
+                            const entryDate = new Date(entry.timestamp);
+
+                            if (entryDate < twentyFourHoursAgo) {
+                                // This entry is older than 24 hours, remove it
+                                const entryToRemoveRef = trackingRef.child(key); // Get a reference to the specific old entry
+                                entryToRemoveRef.remove() // Use .remove() on the child reference
+                                    .then(() => {
+                                        debugLog(`Removed old entry with key: ${key}`);
+                                        cleanedCount++;
+                                    })
+                                    .catch(error => {
+                                        debugLog(`Error removing entry with key ${key}`, error);
+                                    });
+                            }
+                        });
+
+                        if (cleanedCount > 0) {
+                             debugLog(`Finished cleaning. Removed ${cleanedCount} old entries.`);
+                        } else {
+                             debugLog("No old entries found to remove.");
+                        }
+                    })
+                    .catch(error => {
+                        debugLog("Error fetching database entries for cleaning", error);
+                        // Maybe don't show a user-facing error for this background task?
+                        // showError("Error checking for old tracking data.");
+                    });
+            } catch (error) {
+                debugLog("Error in cleanDatabase function execution", error);
+                // showError("An internal error occurred during database cleaning.");
+            }
         }
 
-        // Fonction pour afficher les entrées
-        function displayEntries(entries) {
-            const historyList = document.getElementById('history-list');
+        // Function to save a new tracking entry
+        function saveTrackingEntry(locationName, latitude, longitude) {
+            debugLog(`Saving tracking entry: ${locationName} (${latitude}, ${longitude})`);
             
-            if (entries.length === 0) {
-                historyList.innerHTML = '<p>Aucun passage enregistré récemment.</p>';
+            if (!trackingRef) {
+                debugLog("Cannot save tracking entry: Firebase reference not initialized");
                 return;
             }
             
-            historyList.innerHTML = '';
-            
-            // Afficher les entrées récentes d'abord
-            entries.reverse().forEach(entry => {
-                const entryElement = document.createElement('div');
-                entryElement.className = 'history-item';
-                entryElement.innerHTML = `
-                    <p><strong>Région:</strong> ${entry.region}</p>
-                    <p><strong>Date et heure:</strong> ${entry.datetime}</p>
-                `;
-                historyList.appendChild(entryElement);
-            });
-        }
-
-        // Fonction principale pour gérer la géolocalisation
-        async function handleGeolocation() {
-            const currentLocationDiv = document.getElementById('current-location');
-            
             try {
-                // Demander la géolocalisation
-                navigator.geolocation.getCurrentPosition(async (position) => {
-                    const { latitude, longitude } = position.coords;
-                    
-                    // Obtenir la région
-                    const region = await getRegionFromCoordinates(latitude, longitude);
-                    
-                    // Afficher la localisation actuelle
-                    currentLocationDiv.innerHTML = `
-                        <h3>Votre passage a été enregistré</h3>
-                        <p><strong>Région:</strong> ${region}</p>
-                        <p><strong>Date et heure:</strong> ${getCurrentDateTime()}</p>
-                    `;
-                    
-                    // Sauvegarder l'entrée
-                    saveEntry(region);
-                    
-                }, (error) => {
-                    console.error("Erreur de géolocalisation:", error);
-                    currentLocationDiv.innerHTML = `
-                        <div class="error">
-                            <p>Impossible d'accéder à votre position. Assurez-vous d'autoriser la géolocalisation.</p>
-                            <p>Erreur: ${error.message}</p>
-                        </div>
-                    `;
-                    
-                    // Charger quand même l'historique
-                    const entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
-                    displayEntries(cleanOldEntries(entries));
-                });
-            } catch (error) {
-                console.error("Erreur:", error);
-                currentLocationDiv.innerHTML = `
-                    <div class="error">
-                        <p>Une erreur est survenue lors du traitement de votre position.</p>
-                    </div>
-                `;
+                const newEntryRef = trackingRef.push();
+                const now = new Date();
                 
-                // Charger quand même l'historique
-                const entries = JSON.parse(localStorage.getItem('locationEntries') || '[]');
-                displayEntries(cleanOldEntries(entries));
+                const entryData = {
+                    locationName: locationName,
+                    latitude: latitude,
+                    longitude: longitude,
+                    timestamp: now.toISOString(),
+                    datetime: getCurrentDateTime()
+                };
+                
+                newEntryRef.set(entryData)
+                    .then(() => {
+                        debugLog("Entry saved successfully");
+                    })
+                    .catch(error => {
+                        debugLog("Error saving entry", error);
+                        showError("Failed to save your location. Please try again.");
+                    });
+            } catch (error) {
+                debugLog("Error creating entry", error);
+                showError("An error occurred while saving your location.");
             }
         }
 
-        // Démarrer l'application
+        // Function to display tracking entries sorted by distance
+        function displayTrackingEntries(entries) {
+            debugLog("Displaying tracking entries", entries);
+            const trackingDataTable = document.getElementById('tracking-data');
+            
+            if (!entries || Object.keys(entries).length === 0) {
+                trackingDataTable.innerHTML = '<tr><td colspan="4">No tracking data available yet. Click "Refresh Data" to record your current location.</td></tr>';
+                return;
+            }
+            
+            try {
+                trackingDataTable.innerHTML = '';
+                
+                // Convert object to array and calculate distances
+                const entriesArray = Object.keys(entries).map(key => {
+                    const entry = entries[key];
+                    if (!entry || !entry.latitude || !entry.longitude) {
+                        return null;
+                    }
+                    
+                    const distance = calculateDistance(
+                        entry.latitude, entry.longitude,
+                        DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+                    );
+                    
+                    return {
+                        ...entry,
+                        distance: distance,
+                        estimatedArrival: estimateArrival(distance)
+                    };
+                }).filter(entry => entry !== null);
+                
+                if (entriesArray.length === 0) {
+                    trackingDataTable.innerHTML = '<tr><td colspan="4">No valid tracking data available.</td></tr>';
+                    return;
+                }
+                
+                // Sort by distance (farthest first)
+                entriesArray.sort((a, b) => b.distance - a.distance);
+                
+                // Display the entries
+                entriesArray.forEach(entry => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${entry.locationName || "Unknown"}</td>
+                        <td>${entry.datetime || "Unknown"}</td>
+                        <td><span class="distance">${entry.distance.toFixed(1)} km</span></td>
+                        <td><span class="estimate">${entry.estimatedArrival}</span></td>
+                    `;
+                    
+                    trackingDataTable.appendChild(row);
+                });
+                
+                debugLog(`Displayed ${entriesArray.length} entries`);
+            } catch (error) {
+                debugLog("Error displaying tracking entries", error);
+                trackingDataTable.innerHTML = '<tr><td colspan="4" class="error">Error displaying tracking data. Please refresh the page.</td></tr>';
+            }
+        }
+
+        // Function to load and display destination information
+        async function loadDestinationInfo() {
+            debugLog("Loading destination information");
+            const destinationDiv = document.getElementById('destination-info');
+            
+            try {
+                // Get destination name from coordinates if not already defined
+                let destinationLocationName = DESTINATION_NAME;
+                if (!destinationLocationName || destinationLocationName === "") {
+                    destinationLocationName = await getLocationNameFromCoordinates(
+                        DESTINATION_COORDS.latitude, 
+                        DESTINATION_COORDS.longitude
+                    );
+                }
+                
+                destinationDiv.innerHTML = `
+                    <h3>Final Destination</h3>
+                    <p><strong>Location:</strong> ${destinationLocationName}</p>
+                    <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
+                `;
+                debugLog("Destination info loaded", { name: destinationLocationName, coords: DESTINATION_COORDS });
+            } catch (error) {
+                debugLog("Error loading destination info", error);
+                destinationDiv.innerHTML = `
+                    <h3>Final Destination</h3>
+                    <p>${DESTINATION_NAME}</p>
+                    <p class="error">Error loading additional destination info.</p>
+                `;
+            }
+        }
+
+        // Function to handle geolocation
+        async function handleGeolocation() {
+            debugLog("Requesting geolocation permission");
+            const currentLocationDiv = document.getElementById('current-location');
+            
+            try {
+                if (!navigator.geolocation) {
+                    throw new Error("Geolocation is not supported by your browser");
+                }
+                
+                // Request geolocation with a clearer progress message
+                currentLocationDiv.innerHTML = `
+                    <h3>Location Detection</h3>
+                    <p class="loading">Getting your location... (Please allow location access if prompted)</p>
+                `;
+                
+                const positionPromise = new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 15000,  // Increased timeout
+                        maximumAge: 0
+                    });
+                });
+                
+                // Use a timeout to detect when geolocation is taking too long
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error("Location request timed out")), 16000);
+                });
+                
+                // Race the geolocation and timeout promises
+                const position = await Promise.race([positionPromise, timeoutPromise]);
+                
+                debugLog("Geolocation received", position.coords);
+                const { latitude, longitude } = position.coords;
+                currentCoords = { latitude, longitude };
+                
+                // Get location name
+                let locationName = "Unknown location";
+                try {
+                    locationName = await getLocationNameFromCoordinates(latitude, longitude);
+                } catch (locError) {
+                    debugLog("Error getting location name", locError);
+                    // Continue with "Unknown location" if this fails
+                }
+                
+                // Calculate distance to destination
+                const distance = calculateDistance(
+                    latitude, longitude,
+                    DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+                );
+                
+                // Display current location
+                currentLocationDiv.innerHTML = `
+                    <h3>Your Location Recorded</h3>
+                    <p><strong>Location:</strong> ${locationName}</p>
+                    <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                    <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
+                    <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
+                    <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
+                `;
+                
+                // Save tracking entry
+                saveTrackingEntry(locationName, latitude, longitude);
+                
+            } catch (error) {
+                debugLog("Geolocation error", error);
+                let errorMsg = "Unknown error";
+                
+                if (error.code) {
+                    // Handle standard geolocation errors
+                    switch(error.code) {
+                        case 1: // PERMISSION_DENIED
+                            errorMsg = "Location access was denied. Please enable location services in your browser settings and refresh this page.";
+                            break;
+                        case 2: // POSITION_UNAVAILABLE
+                            errorMsg = "Location information is currently unavailable. Please check your device's GPS or network connection.";
+                            break;
+                        case 3: // TIMEOUT
+                            errorMsg = "The location request timed out. Please try again or check your connection.";
+                            break;
+                        default:
+                            errorMsg = `Error code: ${error.code}. ${error.message}`;
+                    }
+                } else {
+                    // Handle other errors
+                    errorMsg = error.message || "Failed to determine your location";
+                }
+                
+                currentLocationDiv.innerHTML = `
+                    <h3>Location Error</h3>
+                    <div class="error">
+                        <p>${errorMsg}</p>
+                        <p>Please check that location services are enabled for this website and try again.</p>
+                        <button id="retry-location" class="refresh-btn">Try Again</button>
+                    </div>
+                `;
+                
+                // Add event listener to the retry button
+                document.getElementById('retry-location')?.addEventListener('click', () => {
+                    handleGeolocation();
+                });
+            }
+        }
+
+        // Fonction pour tester manuellement la géolocalisation
+        function testGeolocation() {
+            debugLog("Testing geolocation manually");
+            
+            // Créer des coordonnées fictives (à proximité de vos coordonnées de destination)
+            const mockPosition = {
+                coords: {
+                    latitude: DESTINATION_COORDS.latitude + (Math.random() - 0.5) * 0.01,
+                    longitude: DESTINATION_COORDS.longitude + (Math.random() - 0.5) * 0.01,
+                    accuracy: 10
+                }
+            };
+            
+            // Traiter ces coordonnées comme si elles venaient de l'API de géolocalisation
+            const currentLocationDiv = document.getElementById('current-location');
+            const { latitude, longitude } = mockPosition.coords;
+            currentCoords = { latitude, longitude };
+            
+            // Utiliser des valeurs par défaut pour continuer
+            const locationName = "Test Location (Manual)";
+            
+            // Calculer la distance
+            const distance = calculateDistance(
+                latitude, longitude,
+                DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+            );
+            
+            // Afficher la position
+            currentLocationDiv.innerHTML = `
+                <h3>Test Location (Manual Override)</h3>
+                <p><strong>Location:</strong> ${locationName}</p>
+                <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
+                <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
+                <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
+                <p class="error">This is a test location. Real geolocation is not working.</p>
+            `;
+            
+            // Enregistrer cette entrée
+            saveTrackingEntry(locationName, latitude, longitude);
+            
+            debugLog("Manual geolocation test completed", mockPosition.coords);
+        }
+
+        // Start the application
         window.onload = function() {
+            debugLog("Application started");
+            
+            // Load destination info
+            loadDestinationInfo();
+            
+            // Clean old entries
+            cleanDatabase();
+            
+            // Handle geolocation
             handleGeolocation();
+            
+            // Listen for tracking data changes
+            if (trackingRef) {
+                debugLog("Setting up Firebase listener");
+                trackingRef.on('value', snapshot => {
+                    debugLog("Firebase data updated");
+                    displayTrackingEntries(snapshot.val());
+                }, error => {
+                    debugLog("Firebase listener error", error);
+                    showError("Error receiving tracking data: " + error.message);
+                });
+            } else {
+                debugLog("Cannot set up Firebase listener: reference not initialized");
+                showError("Database connection not established. Please refresh the page.");
+            }
+            
+            // Set up event listeners
+            document.getElementById('refresh-btn').addEventListener('click', () => {
+                debugLog("Refresh button clicked");
+                handleGeolocation();
+                
+                if (trackingRef) {
+                    trackingRef.once('value')
+                        .then(snapshot => {
+                            displayTrackingEntries(snapshot.val());
+                        })
+                        .catch(error => {
+                            debugLog("Error fetching tracking data", error);
+                            showError("Error refreshing data: " + error.message);
+                        });
+                }
+            });
+            
+            // Set up debug toggle
+            const debugToggle = document.getElementById('debug-toggle');
+            const debugInfo = document.getElementById('debug-info');
+            
+            // Ajouter un bouton de test de géolocalisation dans le mode debug
+            const geoTestButton = document.createElement('button');
+            geoTestButton.textContent = 'Test avec Position Fictive';
+            geoTestButton.className = 'refresh-btn';
+            geoTestButton.style.backgroundColor = '#9b59b6';
+            geoTestButton.addEventListener('click', testGeolocation);
+            debugInfo.parentNode.insertBefore(geoTestButton, debugInfo);
+            geoTestButton.style.display = 'none';
+            
+            debugToggle.addEventListener('click', () => {
+                if (debugInfo.style.display === 'block') {
+                    debugInfo.style.display = 'none';
+                    debugToggle.textContent = 'Show Debug Info';
+                } else {
+                    debugInfo.style.display = 'block';
+                    debugToggle.textContent = 'Hide Debug Info';
+                }
+                
+                // Mettre à jour l'affichage du bouton avec le toggle de debug
+                if (geoTestButton.style.display === 'block') {
+                    geoTestButton.style.display = 'none';
+                } else {
+                    geoTestButton.style.display = 'block';
+                }
+            });
+            
+            // Add test entry button (only in debug mode)
+            const testButton = document.createElement('button');
+            testButton.textContent = 'Create Test Entry';
+            testButton.className = 'refresh-btn';
+            testButton.style.backgroundColor = '#e74c3c';
+            testButton.addEventListener('click', createTestEntry);
+            debugInfo.parentNode.insertBefore(testButton, debugInfo);
+            testButton.style.display = 'none';
+            
+            debugToggle.addEventListener('click', () => {
+                if (testButton.style.display === 'block') {
+                    testButton.style.display = 'none';
+                } else {
+                    testButton.style.display = 'block';
+                }
+            });
         };
+
+        // Create a test entry function (for debugging)
+        function createTestEntry() {
+            debugLog("Creating a test entry");
+            
+            if (!trackingRef) {
+                debugLog("Cannot create test entry: Firebase reference not initialized");
+                return;
+            }
+            
+            // Create a slightly random position near the destination
+            const randomOffset = (Math.random() - 0.5) * 0.01; // about 1km
+            const testLocation = {
+                latitude: DESTINATION_COORDS.latitude + randomOffset,
+                longitude: DESTINATION_COORDS.longitude + randomOffset
+            };
+            
+            saveTrackingEntry("Test Location", testLocation.latitude, testLocation.longitude);
+            debugLog("Test entry created", testLocation);
+        }
     </script>
 </body>
 </html>
