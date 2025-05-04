@@ -285,62 +285,78 @@
         }
 
         // Function to clean entries older than 24 hours
-        function cleanOldEntries(entries) {
-            if (!entries) return {};
-            
-            const now = new Date();
-            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            
-            // Filter out old entries
-            const filteredEntries = Object.keys(entries)
-                .filter(key => {
-                    const entry = entries[key];
-                    if (!entry || !entry.timestamp) return false;
-                    const entryDate = new Date(entry.timestamp);
-                    return entryDate > twentyFourHoursAgo;
-                })
-                .reduce((obj, key) => {
-                    obj[key] = entries[key];
-                    return obj;
-                }, {});
-                
-            debugLog(`Cleaned entries: ${Object.keys(entries).length} -> ${Object.keys(filteredEntries).length}`);
-            return filteredEntries;
-        }
+        // Function to clean the database of old entries
+function cleanDatabase() {
+    debugLog("Cleaning database of old entries");
 
-        // Function to get location name from coordinates
-        async function getLocationNameFromCoordinates(lat, lon) {
-            debugLog(`Getting location name for coordinates: ${lat}, ${lon}`);
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+    if (!trackingRef) {
+        debugLog("Cannot clean database: Firebase reference not initialized");
+        return;
+    }
+
+    try {
+        // Read all entries ONCE to identify old ones
+        trackingRef.once('value')
+            .then(snapshot => {
+                const entries = snapshot.val();
+                debugLog(`Database has ${entries ? Object.keys(entries).length : 0} entries before cleaning`);
+
+                if (!entries) {
+                    debugLog("No entries to clean");
+                    return;
                 }
-                
-                const data = await response.json();
-                debugLog("Location data received", data);
-                
-                // Try to extract a meaningful location name
-                const road = data.address?.road || '';
-                const suburb = data.address?.suburb || '';
-                const city = data.address?.city || data.address?.town || data.address?.village || '';
-                
-                let locationName = '';
-                
-                if (road) locationName += road;
-                if (suburb && road) locationName += ', ' + suburb;
-                else if (suburb) locationName += suburb;
-                
-                if (city && (road || suburb)) locationName += ', ' + city;
-                else if (city) locationName += city;
-                
-                debugLog(`Location name: ${locationName || "Unknown location"}`);
-                return locationName || "Unknown location";
-            } catch (error) {
-                debugLog("Error getting location name", error);
-                return "Unknown location";
-            }
-        }
+
+                const now = new Date();
+                const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                let cleanedCount = 0;
+
+                // Iterate through entries and remove old ones
+                Object.keys(entries).forEach(key => {
+                    const entry = entries[key];
+                    if (!entry || !entry.timestamp) {
+                        // If entry is invalid, maybe remove it too? Or just ignore.
+                        // For now, let's just log and ignore invalid entries.
+                        debugLog(`Skipping invalid entry with key: ${key}`, entry);
+                        return;
+                    }
+
+                    const entryDate = new Date(entry.timestamp);
+
+                    if (entryDate < twentyFourHoursAgo) {
+                        // This entry is older than 24 hours, remove it
+                        const entryToRemoveRef = trackingRef.child(key); // Get a reference to the specific old entry
+                        entryToRemoveRef.remove() // Use .remove() on the child reference
+                            .then(() => {
+                                debugLog(`Removed old entry with key: ${key}`);
+                                cleanedCount++;
+                            })
+                            .catch(error => {
+                                debugLog(`Error removing entry with key ${key}`, error);
+                            });
+                    }
+                });
+
+                if (cleanedCount > 0) {
+                     debugLog(`Finished cleaning. Removed ${cleanedCount} old entries.`);
+                } else {
+                     debugLog("No old entries found to remove.");
+                }
+
+
+            })
+            .catch(error => {
+                debugLog("Error fetching database entries for cleaning", error);
+                // Maybe don't show a user-facing error for this background task?
+                // showError("Error checking for old tracking data.");
+            });
+    } catch (error) {
+        debugLog("Error in cleanDatabase function execution", error);
+        // showError("An internal error occurred during database cleaning.");
+    }
+}
+
+// The rest of your script remains the same.
+
 
         // Function to save a new tracking entry
         function saveTrackingEntry(locationName, latitude, longitude) {
