@@ -284,79 +284,86 @@
             });
         }
 
+        // Function to get location name from coordinates
+        async function getLocationNameFromCoordinates(latitude, longitude) {
+            try {
+                // This is a placeholder - you would need to implement a reverse geocoding API call here
+                // For example, using Google Maps Geocoding API or a similar service
+                // For now, we'll return a generic location name
+                return "Location at " + latitude.toFixed(4) + ", " + longitude.toFixed(4);
+            } catch (error) {
+                debugLog("Error getting location name", error);
+                return "Unknown location";
+            }
+        }
+
         // Function to clean entries older than 24 hours
-        // Function to clean the database of old entries
-function cleanDatabase() {
-    debugLog("Cleaning database of old entries");
+        function cleanDatabase() {
+            debugLog("Cleaning database of old entries");
 
-    if (!trackingRef) {
-        debugLog("Cannot clean database: Firebase reference not initialized");
-        return;
-    }
+            if (!trackingRef) {
+                debugLog("Cannot clean database: Firebase reference not initialized");
+                return;
+            }
 
-    try {
-        // Read all entries ONCE to identify old ones
-        trackingRef.once('value')
-            .then(snapshot => {
-                const entries = snapshot.val();
-                debugLog(`Database has ${entries ? Object.keys(entries).length : 0} entries before cleaning`);
+            try {
+                // Read all entries ONCE to identify old ones
+                trackingRef.once('value')
+                    .then(snapshot => {
+                        const entries = snapshot.val();
+                        debugLog(`Database has ${entries ? Object.keys(entries).length : 0} entries before cleaning`);
 
-                if (!entries) {
-                    debugLog("No entries to clean");
-                    return;
-                }
+                        if (!entries) {
+                            debugLog("No entries to clean");
+                            return;
+                        }
 
-                const now = new Date();
-                const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                let cleanedCount = 0;
+                        const now = new Date();
+                        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                        let cleanedCount = 0;
 
-                // Iterate through entries and remove old ones
-                Object.keys(entries).forEach(key => {
-                    const entry = entries[key];
-                    if (!entry || !entry.timestamp) {
-                        // If entry is invalid, maybe remove it too? Or just ignore.
-                        // For now, let's just log and ignore invalid entries.
-                        debugLog(`Skipping invalid entry with key: ${key}`, entry);
-                        return;
-                    }
+                        // Iterate through entries and remove old ones
+                        Object.keys(entries).forEach(key => {
+                            const entry = entries[key];
+                            if (!entry || !entry.timestamp) {
+                                // If entry is invalid, maybe remove it too? Or just ignore.
+                                // For now, let's just log and ignore invalid entries.
+                                debugLog(`Skipping invalid entry with key: ${key}`, entry);
+                                return;
+                            }
 
-                    const entryDate = new Date(entry.timestamp);
+                            const entryDate = new Date(entry.timestamp);
 
-                    if (entryDate < twentyFourHoursAgo) {
-                        // This entry is older than 24 hours, remove it
-                        const entryToRemoveRef = trackingRef.child(key); // Get a reference to the specific old entry
-                        entryToRemoveRef.remove() // Use .remove() on the child reference
-                            .then(() => {
-                                debugLog(`Removed old entry with key: ${key}`);
-                                cleanedCount++;
-                            })
-                            .catch(error => {
-                                debugLog(`Error removing entry with key ${key}`, error);
-                            });
-                    }
-                });
+                            if (entryDate < twentyFourHoursAgo) {
+                                // This entry is older than 24 hours, remove it
+                                const entryToRemoveRef = trackingRef.child(key); // Get a reference to the specific old entry
+                                entryToRemoveRef.remove() // Use .remove() on the child reference
+                                    .then(() => {
+                                        debugLog(`Removed old entry with key: ${key}`);
+                                        cleanedCount++;
+                                    })
+                                    .catch(error => {
+                                        debugLog(`Error removing entry with key ${key}`, error);
+                                    });
+                            }
+                        });
 
-                if (cleanedCount > 0) {
-                     debugLog(`Finished cleaning. Removed ${cleanedCount} old entries.`);
-                } else {
-                     debugLog("No old entries found to remove.");
-                }
-
-
-            })
-            .catch(error => {
-                debugLog("Error fetching database entries for cleaning", error);
-                // Maybe don't show a user-facing error for this background task?
-                // showError("Error checking for old tracking data.");
-            });
-    } catch (error) {
-        debugLog("Error in cleanDatabase function execution", error);
-        // showError("An internal error occurred during database cleaning.");
-    }
-}
-
-// The rest of your script remains the same.
-
+                        if (cleanedCount > 0) {
+                             debugLog(`Finished cleaning. Removed ${cleanedCount} old entries.`);
+                        } else {
+                             debugLog("No old entries found to remove.");
+                        }
+                    })
+                    .catch(error => {
+                        debugLog("Error fetching database entries for cleaning", error);
+                        // Maybe don't show a user-facing error for this background task?
+                        // showError("Error checking for old tracking data.");
+                    });
+            } catch (error) {
+                debugLog("Error in cleanDatabase function execution", error);
+                // showError("An internal error occurred during database cleaning.");
+            }
+        }
 
         // Function to save a new tracking entry
         function saveTrackingEntry(locationName, latitude, longitude) {
@@ -454,49 +461,6 @@ function cleanDatabase() {
             }
         }
 
-        // Function to clean the database of old entries
-        function cleanDatabase() {
-            debugLog("Cleaning database of old entries");
-            
-            if (!trackingRef) {
-                debugLog("Cannot clean database: Firebase reference not initialized");
-                return;
-            }
-            
-            try {
-                trackingRef.once('value')
-                    .then(snapshot => {
-                        const entries = snapshot.val();
-                        debugLog(`Database has ${entries ? Object.keys(entries).length : 0} entries`);
-                        
-                        if (!entries) {
-                            debugLog("No entries to clean");
-                            return;
-                        }
-                        
-                        const cleanedEntries = cleanOldEntries(entries);
-                        
-                        // If entries were removed, update the database
-                        if (Object.keys(cleanedEntries).length < Object.keys(entries).length) {
-                            trackingRef.set(cleanedEntries)
-                                .then(() => {
-                                    debugLog("Database cleaned successfully");
-                                })
-                                .catch(error => {
-                                    debugLog("Error cleaning database", error);
-                                });
-                        } else {
-                            debugLog("No old entries to remove");
-                        }
-                    })
-                    .catch(error => {
-                        debugLog("Error fetching database entries", error);
-                    });
-            } catch (error) {
-                debugLog("Error in cleanDatabase", error);
-            }
-        }
-
         // Function to load and display destination information
         async function loadDestinationInfo() {
             debugLog("Loading destination information");
@@ -538,90 +502,142 @@ function cleanDatabase() {
                     throw new Error("Geolocation is not supported by your browser");
                 }
                 
-                // Request geolocation
-                navigator.geolocation.getCurrentPosition(async (position) => {
-                    debugLog("Geolocation received", position.coords);
-                    const { latitude, longitude } = position.coords;
-                    currentCoords = { latitude, longitude };
-                    
-                    // Get location name
-                    const locationName = await getLocationNameFromCoordinates(latitude, longitude);
-                    
-                    // Calculate distance to destination
-                    const distance = calculateDistance(
-                        latitude, longitude,
-                        DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
-                    );
-                    
-                    // Display current location
-                    currentLocationDiv.innerHTML = `
-                        <h3>Your Location Recorded</h3>
-                        <p><strong>Location:</strong> ${locationName}</p>
-                        <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
-                        <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
-                        <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
-                        <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
-                    `;
-                    
-                    // Save tracking entry
-                    saveTrackingEntry(locationName, latitude, longitude);
-                    
-                }, (error) => {
-                    debugLog("Geolocation error", error);
-                    let errorMsg = "Unknown error";
-                    
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            errorMsg = "User denied the request for geolocation";
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            errorMsg = "Location information is unavailable";
-                            break;
-                        case error.TIMEOUT:
-                            errorMsg = "The request to get user location timed out";
-                            break;
-                    }
-                    
-                    currentLocationDiv.innerHTML = `
-                        <div class="error">
-                            <p>Unable to access your location. Please make sure you allow location access.</p>
-                            <p>Error: ${errorMsg}</p>
-                        </div>
-                    `;
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                });
-            } catch (error) {
-                debugLog("Error in handleGeolocation", error);
+                // Request geolocation with a clearer progress message
                 currentLocationDiv.innerHTML = `
+                    <h3>Location Detection</h3>
+                    <p class="loading">Getting your location... (Please allow location access if prompted)</p>
+                `;
+                
+                const positionPromise = new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 15000,  // Increased timeout
+                        maximumAge: 0
+                    });
+                });
+                
+                // Use a timeout to detect when geolocation is taking too long
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error("Location request timed out")), 16000);
+                });
+                
+                // Race the geolocation and timeout promises
+                const position = await Promise.race([positionPromise, timeoutPromise]);
+                
+                debugLog("Geolocation received", position.coords);
+                const { latitude, longitude } = position.coords;
+                currentCoords = { latitude, longitude };
+                
+                // Get location name
+                let locationName = "Unknown location";
+                try {
+                    locationName = await getLocationNameFromCoordinates(latitude, longitude);
+                } catch (locError) {
+                    debugLog("Error getting location name", locError);
+                    // Continue with "Unknown location" if this fails
+                }
+                
+                // Calculate distance to destination
+                const distance = calculateDistance(
+                    latitude, longitude,
+                    DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+                );
+                
+                // Display current location
+                currentLocationDiv.innerHTML = `
+                    <h3>Your Location Recorded</h3>
+                    <p><strong>Location:</strong> ${locationName}</p>
+                    <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                    <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
+                    <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
+                    <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
+                `;
+                
+                // Save tracking entry
+                saveTrackingEntry(locationName, latitude, longitude);
+                
+            } catch (error) {
+                debugLog("Geolocation error", error);
+                let errorMsg = "Unknown error";
+                
+                if (error.code) {
+                    // Handle standard geolocation errors
+                    switch(error.code) {
+                        case 1: // PERMISSION_DENIED
+                            errorMsg = "Location access was denied. Please enable location services in your browser settings and refresh this page.";
+                            break;
+                        case 2: // POSITION_UNAVAILABLE
+                            errorMsg = "Location information is currently unavailable. Please check your device's GPS or network connection.";
+                            break;
+                        case 3: // TIMEOUT
+                            errorMsg = "The location request timed out. Please try again or check your connection.";
+                            break;
+                        default:
+                            errorMsg = `Error code: ${error.code}. ${error.message}`;
+                    }
+                } else {
+                    // Handle other errors
+                    errorMsg = error.message || "Failed to determine your location";
+                }
+                
+                currentLocationDiv.innerHTML = `
+                    <h3>Location Error</h3>
                     <div class="error">
-                        <p>An error occurred while processing your location.</p>
-                        <p>${error.message}</p>
+                        <p>${errorMsg}</p>
+                        <p>Please check that location services are enabled for this website and try again.</p>
+                        <button id="retry-location" class="refresh-btn">Try Again</button>
                     </div>
                 `;
+                
+                // Add event listener to the retry button
+                document.getElementById('retry-location')?.addEventListener('click', () => {
+                    handleGeolocation();
+                });
             }
         }
 
-        // Create a test entry function (for debugging)
-        function createTestEntry() {
-            debugLog("Creating a test entry");
+        // Fonction pour tester manuellement la géolocalisation
+        function testGeolocation() {
+            debugLog("Testing geolocation manually");
             
-            if (!trackingRef) {
-                debugLog("Cannot create test entry: Firebase reference not initialized");
-                return;
-            }
-            
-            // Create a slightly random position near the destination
-            const randomOffset = (Math.random() - 0.5) * 0.01; // about 1km
-            const testLocation = {
-                latitude: DESTINATION_COORDS.latitude + randomOffset,
-                longitude: DESTINATION_COORDS.longitude + randomOffset
+            // Créer des coordonnées fictives (à proximité de vos coordonnées de destination)
+            const mockPosition = {
+                coords: {
+                    latitude: DESTINATION_COORDS.latitude + (Math.random() - 0.5) * 0.01,
+                    longitude: DESTINATION_COORDS.longitude + (Math.random() - 0.5) * 0.01,
+                    accuracy: 10
+                }
             };
             
-            saveTrackingEntry("Test Location", testLocation.latitude, testLocation.longitude);
-            debugLog("Test entry created", testLocation);
+            // Traiter ces coordonnées comme si elles venaient de l'API de géolocalisation
+            const currentLocationDiv = document.getElementById('current-location');
+            const { latitude, longitude } = mockPosition.coords;
+            currentCoords = { latitude, longitude };
+            
+            // Utiliser des valeurs par défaut pour continuer
+            const locationName = "Test Location (Manual)";
+            
+            // Calculer la distance
+            const distance = calculateDistance(
+                latitude, longitude,
+                DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
+            );
+            
+            // Afficher la position
+            currentLocationDiv.innerHTML = `
+                <h3>Test Location (Manual Override)</h3>
+                <p><strong>Location:</strong> ${locationName}</p>
+                <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
+                <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
+                <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
+                <p class="error">This is a test location. Real geolocation is not working.</p>
+            `;
+            
+            // Enregistrer cette entrée
+            saveTrackingEntry(locationName, latitude, longitude);
+            
+            debugLog("Manual geolocation test completed", mockPosition.coords);
         }
 
         // Start the application
@@ -673,6 +689,15 @@ function cleanDatabase() {
             const debugToggle = document.getElementById('debug-toggle');
             const debugInfo = document.getElementById('debug-info');
             
+            // Ajouter un bouton de test de géolocalisation dans le mode debug
+            const geoTestButton = document.createElement('button');
+            geoTestButton.textContent = 'Test avec Position Fictive';
+            geoTestButton.className = 'refresh-btn';
+            geoTestButton.style.backgroundColor = '#9b59b6';
+            geoTestButton.addEventListener('click', testGeolocation);
+            debugInfo.parentNode.insertBefore(geoTestButton, debugInfo);
+            geoTestButton.style.display = 'none';
+            
             debugToggle.addEventListener('click', () => {
                 if (debugInfo.style.display === 'block') {
                     debugInfo.style.display = 'none';
@@ -680,6 +705,13 @@ function cleanDatabase() {
                 } else {
                     debugInfo.style.display = 'block';
                     debugToggle.textContent = 'Hide Debug Info';
+                }
+                
+                // Mettre à jour l'affichage du bouton avec le toggle de debug
+                if (geoTestButton.style.display === 'block') {
+                    geoTestButton.style.display = 'none';
+                } else {
+                    geoTestButton.style.display = 'block';
                 }
             });
             
@@ -700,6 +732,26 @@ function cleanDatabase() {
                 }
             });
         };
+
+        // Create a test entry function (for debugging)
+        function createTestEntry() {
+            debugLog("Creating a test entry");
+            
+            if (!trackingRef) {
+                debugLog("Cannot create test entry: Firebase reference not initialized");
+                return;
+            }
+            
+            // Create a slightly random position near the destination
+            const randomOffset = (Math.random() - 0.5) * 0.01; // about 1km
+            const testLocation = {
+                latitude: DESTINATION_COORDS.latitude + randomOffset,
+                longitude: DESTINATION_COORDS.longitude + randomOffset
+            };
+            
+            saveTrackingEntry("Test Location", testLocation.latitude, testLocation.longitude);
+            debugLog("Test entry created", testLocation);
+        }
     </script>
 </body>
 </html>
