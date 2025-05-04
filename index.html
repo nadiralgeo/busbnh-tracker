@@ -207,8 +207,8 @@
             <h2 class="login-title">Bus Tracker Access</h2>
             <p>Veuillez saisir le code d'accès</p>
             <div class="pin-input">
-    <input type="password" class="pin-digit" maxlength="4" id="full-pin" placeholder="****">
-</div>
+                <input type="password" class="pin-digit" maxlength="4" id="full-pin" placeholder="****">
+            </div>
             <button class="login-button" id="login-button">Accéder</button>
             <p class="login-error" id="login-error"></p>
         </div>
@@ -579,7 +579,7 @@
                         }
                         currentLocationDiv.innerHTML = `<div class="error">${errorMessage}</div>`;
                         console.error(errorMessage, error);
-debugLog(errorMessage, error);
+                        debugLog(errorMessage, error);
                     }
                 );
             } else {
@@ -669,71 +669,41 @@ debugLog(errorMessage, error);
         }
 
         // Function to handle PIN input and login
-       function handlePinInput() {
-    const fullPin = document.getElementById('full-pin');
-    const loginScreen = document.getElementById('login-screen');
-    const correctPin = '4247';
+        function handlePinInput() {
+            const fullPin = document.getElementById('full-pin');
+            const loginScreen = document.getElementById('login-screen');
+            const loginError = document.getElementById('login-error');
 
-    fullPin.addEventListener('keyup', function (e) {
-        if (e.key === 'Enter' || fullPin.value.length === 4) {
-            if (fullPin.value === correctPin) {
-                loginScreen.style.display = 'none'; // Code correct
-            } else {
-                alert('Code incorrect');
-                fullPin.value = ''; // Réinitialiser
-            }
-        }
-    });
-}
-                input.addEventListener('keydown', (e) => {
-                    if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
-                        pinDigits[index - 1].focus();
+            fullPin.addEventListener('keyup', function (e) {
+                if (e.key === 'Enter' || fullPin.value.length === 4) {
+                    if (fullPin.value === ACCESS_CODE) {
+                        loginScreen.style.display = 'none'; // Code correct
+                        initializeAppData(); // Appel de la fonction pour initialiser les données de l'application
+                    } else {
+                        loginError.textContent = "Code incorrect. Veuillez réessayer."; // Afficher un message d'erreur
+                        fullPin.value = ''; // Réinitialiser le champ
+                        fullPin.focus(); // Re-focaliser sur le champ PIN
                     }
-                });
-            });
-
-            function handleLogin() {
-                const enteredPin = pin1.value + pin2.value + pin3.value + pin4.value;
-                if (enteredPin === ACCESS_CODE) {
-                    isLoggedIn = true;
-                    document.getElementById('login-screen').style.display = 'none';
-                    document.querySelector('.container').style.display = 'block';
-                    debugLog("Connexion réussie");
-                    // Initialize data
-                    initializeAppData();
-                } else {
-                    loginError.textContent = "Code incorrect. Veuillez réessayer.";
-                    pinDigits.forEach(input => {
-                        input.value = '';
-                    });
-                    pin1.focus();
-                    debugLog("Échec de la connexion avec le code: " + enteredPin);
-                }
-            }
-            // Add event listener for Enter key press in the last input field
-            pin4.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handleLogin();
                 }
             });
         }
-        
+
         function initializeAppData() {
             // Set bus line info
             document.getElementById('bus-line').textContent = BUS_LINE;
             // Get device info
             deviceInfo = getDeviceInfo();
             debugLog("Device Info:", deviceInfo);
-            //initialise la page
+            // Initialiser la page
             showDestinationInfo();
             getBusLocation();
             updateTrackingHistory();
+            
             // Attach event listener to the location selector
             document.getElementById('location-select').addEventListener('change', () => {
                 selectedLocation = document.getElementById('location-select').value;
                 debugLog("Selected Location: " + selectedLocation);
-                // Get the geolocation of the user.
-                getBusLocation();
+                getBusLocation(); // Obtenir la géolocalisation de l'utilisateur
             });
 
             // Clean database periodically (e.g., every 6 hours)
@@ -752,22 +722,15 @@ debugLog(errorMessage, error);
                     debugToggle.textContent = 'Afficher Infos Debug';
                 }
             });
-            
-            // Call handlePinInput to set up the input fields.
-            handlePinInput();
-            
-            // Focus on the first input field on page load
-            document.getElementById('pin1').focus();
-
-            // Add event listener to the login button
-            document.getElementById('login-button').addEventListener('click', handleLogin);
-            
-            // Add event listener to the refresh button
-            document.getElementById('refresh-btn').addEventListener('click', handleRefresh);
         }
         
+        // Add event listener to the login button
+        document.getElementById('login-button').addEventListener('click', handlePinInput);
+        
         // Initialize the app when the window loads
-        window.onload = initializeApp;
+        window.onload = () => {
+            handlePinInput(); // Set up the PIN input handling
+        };
     </script>
 </body>
 </html>
