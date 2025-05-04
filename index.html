@@ -106,46 +106,56 @@
             color: #7f8c8d;
             cursor: pointer;
         }
+        .pin-input {
+            text-align: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Bus Tracker</h1>
-        <div class="bus-line-info" style="text-align: center;">
-            <span class="bus-line" id="bus-line"></span>
+        <div class="pin-input">
+            <label for="pin">Enter Access PIN:</label>
+            <input type="password" id="pin" />
+            <button id="submit-pin" class="refresh-btn">Submit</button>
         </div>
-        
-        <div id="current-location" class="location-info">
-            <p class="loading">Getting your location...</p>
+        <div id="content" style="display: none;">
+            <div class="bus-line-info" style="text-align: center;">
+                <span class="bus-line" id="bus-line"></span>
+            </div>
+            
+            <div id="current-location" class="location-info">
+                <p class="loading">Getting your location...</p>
+            </div>
+            
+            <div class="destination-info" id="destination-info">
+                <p class="loading">Loading destination information...</p>
+            </div>
+            
+            <div class="history">
+                <h2>Bus Tracking Data (Last 24 Hours)</h2>
+                <p>Sorted by distance from final destination (farthest first)</p>
+                <table id="tracking-table">
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>Time</th>
+                            <th>Est. Arrival</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracking-data">
+                        <tr>
+                            <td colspan="3" class="loading">Loading tracking data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button id="refresh-btn" class="refresh-btn">Refresh Data</button>
+            </div>
+            
+            <div id="debug-info" class="debug-info"></div>
+            <div class="debug-toggle" id="debug-toggle">Show Debug Info</div>
         </div>
-        
-        <div class="destination-info" id="destination-info">
-            <p class="loading">Loading destination information...</p>
-        </div>
-        
-        <div class="history">
-            <h2>Bus Tracking Data (Last 24 Hours)</h2>
-            <p>Sorted by distance from final destination (farthest first)</p>
-            <table id="tracking-table">
-                <thead>
-                    <tr>
-                        <th>Location</th>
-                        <th>Time</th>
-                        <th>Distance to Final</th>
-                        <th>Est. Arrival</th>
-                    </tr>
-                </thead>
-                <tbody id="tracking-data">
-                    <tr>
-                        <td colspan="4" class="loading">Loading tracking data...</td>
-                    </tr>
-                </tbody>
-            </table>
-            <button id="refresh-btn" class="refresh-btn">Refresh Data</button>
-        </div>
-        
-        <div id="debug-info" class="debug-info"></div>
-        <div class="debug-toggle" id="debug-toggle">Show Debug Info</div>
     </div>
 
     <!-- Firebase App (core) -->
@@ -154,6 +164,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
 
     <script>
+        const ACCESS_PIN = "1579"; // Code PIN d'accès
+
+        // Vérification du code PIN
+        document.getElementById('submit-pin').addEventListener('click', function() {
+            const enteredPin = document.getElementById('pin').value;
+            if (enteredPin === ACCESS_PIN) {
+                document.getElementById('content').style.display = 'block';
+                document.querySelector('.pin-input').style.display = 'none';
+            } else {
+                alert("Incorrect PIN. Please try again.");
+            }
+        });
+
         // CONFIGURATION: REPLACE THESE VALUES WITH YOUR SPECIFIC BUS LINE INFORMATION
         const BUS_LINE = "Line 4742";
         const DESTINATION_NAME = "Central Station";
@@ -230,7 +253,7 @@
             const element = document.getElementById(elementId);
             if (element) {
                 if (elementId === 'tracking-data') {
-                    element.innerHTML = `<tr><td colspan="4" class="error">${message}</td></tr>`;
+                    element.innerHTML = `<tr><td colspan="3" class="error">${message}</td></tr>`;
                 } else {
                     element.innerHTML = `<div class="error">${message}</div>`;
                 }
@@ -326,8 +349,6 @@
                         Object.keys(entries).forEach(key => {
                             const entry = entries[key];
                             if (!entry || !entry.timestamp) {
-                                // If entry is invalid, maybe remove it too? Or just ignore.
-                                // For now, let's just log and ignore invalid entries.
                                 debugLog(`Skipping invalid entry with key: ${key}`, entry);
                                 return;
                             }
@@ -335,9 +356,8 @@
                             const entryDate = new Date(entry.timestamp);
 
                             if (entryDate < twentyFourHoursAgo) {
-                                // This entry is older than 24 hours, remove it
-                                const entryToRemoveRef = trackingRef.child(key); // Get a reference to the specific old entry
-                                entryToRemoveRef.remove() // Use .remove() on the child reference
+                                const entryToRemoveRef = trackingRef.child(key);
+                                entryToRemoveRef.remove()
                                     .then(() => {
                                         debugLog(`Removed old entry with key: ${key}`);
                                         cleanedCount++;
@@ -356,12 +376,9 @@
                     })
                     .catch(error => {
                         debugLog("Error fetching database entries for cleaning", error);
-                        // Maybe don't show a user-facing error for this background task?
-                        // showError("Error checking for old tracking data.");
                     });
             } catch (error) {
                 debugLog("Error in cleanDatabase function execution", error);
-                // showError("An internal error occurred during database cleaning.");
             }
         }
 
@@ -406,7 +423,7 @@
             const trackingDataTable = document.getElementById('tracking-data');
             
             if (!entries || Object.keys(entries).length === 0) {
-                trackingDataTable.innerHTML = '<tr><td colspan="4">No tracking data available yet. Click "Refresh Data" to record your current location.</td></tr>';
+                trackingDataTable.innerHTML = '<tr><td colspan="3">No tracking data available yet. Click "Refresh Data" to record your current location.</td></tr>';
                 return;
             }
             
@@ -420,20 +437,18 @@
                         return null;
                     }
                     
-                    const distance = calculateDistance(
-                        entry.latitude, entry.longitude,
-                        DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
-                    );
+                    // Remplacer le nom de l'arrêt ou de la région ici
+                    const locationName = "Stop/Region Name"; // Remplacez par la logique pour obtenir le nom de l'arrêt
                     
                     return {
                         ...entry,
-                        distance: distance,
-                        estimatedArrival: estimateArrival(distance)
+                        locationName: locationName,
+                        estimatedArrival: estimateArrival(0) // Remplacer par une logique d'estimation si nécessaire
                     };
                 }).filter(entry => entry !== null);
                 
                 if (entriesArray.length === 0) {
-                    trackingDataTable.innerHTML = '<tr><td colspan="4">No valid tracking data available.</td></tr>';
+                    trackingDataTable.innerHTML = '<tr><td colspan="3">No valid tracking data available.</td></tr>';
                     return;
                 }
                 
@@ -447,7 +462,6 @@
                     row.innerHTML = `
                         <td>${entry.locationName || "Unknown"}</td>
                         <td>${entry.datetime || "Unknown"}</td>
-                        <td><span class="distance">${entry.distance.toFixed(1)} km</span></td>
                         <td><span class="estimate">${entry.estimatedArrival}</span></td>
                     `;
                     
@@ -457,7 +471,7 @@
                 debugLog(`Displayed ${entriesArray.length} entries`);
             } catch (error) {
                 debugLog("Error displaying tracking entries", error);
-                trackingDataTable.innerHTML = '<tr><td colspan="4" class="error">Error displaying tracking data. Please refresh the page.</td></tr>';
+                trackingDataTable.innerHTML = '<tr><td colspan="3" class="error">Error displaying tracking data. Please refresh the page.</td></tr>';
             }
         }
 
@@ -467,7 +481,6 @@
             const destinationDiv = document.getElementById('destination-info');
             
             try {
-                // Get destination name from coordinates if not already defined
                 let destinationLocationName = DESTINATION_NAME;
                 if (!destinationLocationName || destinationLocationName === "") {
                     destinationLocationName = await getLocationNameFromCoordinates(
@@ -502,7 +515,6 @@
                     throw new Error("Geolocation is not supported by your browser");
                 }
                 
-                // Request geolocation with a clearer progress message
                 currentLocationDiv.innerHTML = `
                     <h3>Location Detection</h3>
                     <p class="loading">Getting your location... (Please allow location access if prompted)</p>
@@ -511,39 +523,33 @@
                 const positionPromise = new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: true,
-                        timeout: 15000,  // Increased timeout
+                        timeout: 15000,
                         maximumAge: 0
                     });
                 });
                 
-                // Use a timeout to detect when geolocation is taking too long
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error("Location request timed out")), 16000);
                 });
                 
-                // Race the geolocation and timeout promises
                 const position = await Promise.race([positionPromise, timeoutPromise]);
                 
                 debugLog("Geolocation received", position.coords);
                 const { latitude, longitude } = position.coords;
                 currentCoords = { latitude, longitude };
                 
-                // Get location name
                 let locationName = "Unknown location";
                 try {
                     locationName = await getLocationNameFromCoordinates(latitude, longitude);
                 } catch (locError) {
                     debugLog("Error getting location name", locError);
-                    // Continue with "Unknown location" if this fails
                 }
                 
-                // Calculate distance to destination
                 const distance = calculateDistance(
                     latitude, longitude,
                     DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
                 );
                 
-                // Display current location
                 currentLocationDiv.innerHTML = `
                     <h3>Your Location Recorded</h3>
                     <p><strong>Location:</strong> ${locationName}</p>
@@ -553,7 +559,6 @@
                     <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
                 `;
                 
-                // Save tracking entry
                 saveTrackingEntry(locationName, latitude, longitude);
                 
             } catch (error) {
@@ -561,22 +566,20 @@
                 let errorMsg = "Unknown error";
                 
                 if (error.code) {
-                    // Handle standard geolocation errors
                     switch(error.code) {
-                        case 1: // PERMISSION_DENIED
+                        case 1:
                             errorMsg = "Location access was denied. Please enable location services in your browser settings and refresh this page.";
                             break;
-                        case 2: // POSITION_UNAVAILABLE
+                        case 2:
                             errorMsg = "Location information is currently unavailable. Please check your device's GPS or network connection.";
                             break;
-                        case 3: // TIMEOUT
+                        case 3:
                             errorMsg = "The location request timed out. Please try again or check your connection.";
                             break;
                         default:
                             errorMsg = `Error code: ${error.code}. ${error.message}`;
                     }
                 } else {
-                    // Handle other errors
                     errorMsg = error.message || "Failed to determine your location";
                 }
                 
@@ -589,71 +592,20 @@
                     </div>
                 `;
                 
-                // Add event listener to the retry button
                 document.getElementById('retry-location')?.addEventListener('click', () => {
                     handleGeolocation();
                 });
             }
         }
 
-        // Fonction pour tester manuellement la géolocalisation
-        function testGeolocation() {
-            debugLog("Testing geolocation manually");
-            
-            // Créer des coordonnées fictives (à proximité de vos coordonnées de destination)
-            const mockPosition = {
-                coords: {
-                    latitude: DESTINATION_COORDS.latitude + (Math.random() - 0.5) * 0.01,
-                    longitude: DESTINATION_COORDS.longitude + (Math.random() - 0.5) * 0.01,
-                    accuracy: 10
-                }
-            };
-            
-            // Traiter ces coordonnées comme si elles venaient de l'API de géolocalisation
-            const currentLocationDiv = document.getElementById('current-location');
-            const { latitude, longitude } = mockPosition.coords;
-            currentCoords = { latitude, longitude };
-            
-            // Utiliser des valeurs par défaut pour continuer
-            const locationName = "Test Location (Manual)";
-            
-            // Calculer la distance
-            const distance = calculateDistance(
-                latitude, longitude,
-                DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude
-            );
-            
-            // Afficher la position
-            currentLocationDiv.innerHTML = `
-                <h3>Test Location (Manual Override)</h3>
-                <p><strong>Location:</strong> ${locationName}</p>
-                <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
-                <p><strong>Time:</strong> ${getCurrentDateTime()}</p>
-                <p><strong>Distance to destination:</strong> ${distance.toFixed(1)} km</p>
-                <p><strong>Estimated arrival at ${DESTINATION_NAME || 'destination'}:</strong> ${estimateArrival(distance)}</p>
-                <p class="error">This is a test location. Real geolocation is not working.</p>
-            `;
-            
-            // Enregistrer cette entrée
-            saveTrackingEntry(locationName, latitude, longitude);
-            
-            debugLog("Manual geolocation test completed", mockPosition.coords);
-        }
-
         // Start the application
         window.onload = function() {
             debugLog("Application started");
             
-            // Load destination info
             loadDestinationInfo();
-            
-            // Clean old entries
             cleanDatabase();
-            
-            // Handle geolocation
             handleGeolocation();
             
-            // Listen for tracking data changes
             if (trackingRef) {
                 debugLog("Setting up Firebase listener");
                 trackingRef.on('value', snapshot => {
@@ -668,7 +620,6 @@
                 showError("Database connection not established. Please refresh the page.");
             }
             
-            // Set up event listeners
             document.getElementById('refresh-btn').addEventListener('click', () => {
                 debugLog("Refresh button clicked");
                 handleGeolocation();
@@ -684,74 +635,7 @@
                         });
                 }
             });
-            
-            // Set up debug toggle
-            const debugToggle = document.getElementById('debug-toggle');
-            const debugInfo = document.getElementById('debug-info');
-            
-            // Ajouter un bouton de test de géolocalisation dans le mode debug
-            const geoTestButton = document.createElement('button');
-            geoTestButton.textContent = 'Test avec Position Fictive';
-            geoTestButton.className = 'refresh-btn';
-            geoTestButton.style.backgroundColor = '#9b59b6';
-            geoTestButton.addEventListener('click', testGeolocation);
-            debugInfo.parentNode.insertBefore(geoTestButton, debugInfo);
-            geoTestButton.style.display = 'none';
-            
-            debugToggle.addEventListener('click', () => {
-                if (debugInfo.style.display === 'block') {
-                    debugInfo.style.display = 'none';
-                    debugToggle.textContent = 'Show Debug Info';
-                } else {
-                    debugInfo.style.display = 'block';
-                    debugToggle.textContent = 'Hide Debug Info';
-                }
-                
-                // Mettre à jour l'affichage du bouton avec le toggle de debug
-                if (geoTestButton.style.display === 'block') {
-                    geoTestButton.style.display = 'none';
-                } else {
-                    geoTestButton.style.display = 'block';
-                }
-            });
-            
-            // Add test entry button (only in debug mode)
-            const testButton = document.createElement('button');
-            testButton.textContent = 'Create Test Entry';
-            testButton.className = 'refresh-btn';
-            testButton.style.backgroundColor = '#e74c3c';
-            testButton.addEventListener('click', createTestEntry);
-            debugInfo.parentNode.insertBefore(testButton, debugInfo);
-            testButton.style.display = 'none';
-            
-            debugToggle.addEventListener('click', () => {
-                if (testButton.style.display === 'block') {
-                    testButton.style.display = 'none';
-                } else {
-                    testButton.style.display = 'block';
-                }
-            });
         };
-
-        // Create a test entry function (for debugging)
-        function createTestEntry() {
-            debugLog("Creating a test entry");
-            
-            if (!trackingRef) {
-                debugLog("Cannot create test entry: Firebase reference not initialized");
-                return;
-            }
-            
-            // Create a slightly random position near the destination
-            const randomOffset = (Math.random() - 0.5) * 0.01; // about 1km
-            const testLocation = {
-                latitude: DESTINATION_COORDS.latitude + randomOffset,
-                longitude: DESTINATION_COORDS.longitude + randomOffset
-            };
-            
-            saveTrackingEntry("Test Location", testLocation.latitude, testLocation.longitude);
-            debugLog("Test entry created", testLocation);
-        }
     </script>
 </body>
 </html>
