@@ -164,6 +164,18 @@
         const ACCESS_PIN = "1579"; // Code PIN d'accès
 
         // Vérification du code PIN
+        document.getElementById('pin').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                const enteredPin = document.getElementById('pin').value;
+                if (enteredPin === ACCESS_PIN) {
+                    document.getElementById('content').style.display = 'block';
+                    document.querySelector('.pin-input').style.display = 'none';
+                } else {
+                    alert("Incorrect PIN. Please try again.");
+                }
+            }
+        });
+
         document.getElementById('submit-pin').addEventListener('click', function() {
             const enteredPin = document.getElementById('pin').value;
             if (enteredPin === ACCESS_PIN) {
@@ -178,8 +190,8 @@
         const BUS_LINE = "Line 4742";
         const DESTINATION_NAME = "Central Station";
         const DESTINATION_COORDS = {
-            latitude: 36.716321,  // Replace with actual coordinates
-            longitude: 3.203065   // Replace with actual coordinates
+            latitude: 48.858844,  // Replace with actual coordinates
+            longitude: 2.294351   // Replace with actual coordinates
         };
         const BUS_ID = "bus-line-42"; // Unique ID for your bus line (for database)
         
@@ -395,8 +407,8 @@
                     locationName: locationName,
                     latitude: latitude,
                     longitude: longitude,
-                    timestamp: now.toISOString(),
-                    datetime: getCurrentDateTime()
+                    timestamp: now.toISOString(), // Enregistre l'heure actuelle
+                    datetime: getCurrentDateTime() // Formate l'heure pour affichage
                 };
                 
                 newEntryRef.set(entryData)
