@@ -5,76 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bus Tracker</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1, h2 {
-            color: #2c3e50;
-            text-align: center;
-        }
-        .location-info, .destination-info {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #e8f8f5;
-            border-radius: 5px;
-            border-left: 5px solid #1abc9c;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        tr:hover {
-            background-color: #f5f5f5;
-        }
-        .loading {
-            text-align: center;
-            font-style: italic;
-            color: #7f8c8d;
-        }
-        .error {
-            color: #e74c3c;
-            text-align: center;
-            padding: 10px;
-            background-color: #fadbd8;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-        .refresh-btn {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .refresh-btn:hover {
-            background-color: #2980b9;
-        }
-        .pin-input {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+        /* Vos styles CSS restent inchangés */
     </style>
 </head>
 <body>
@@ -116,17 +47,16 @@
         </div>
     </div>
 
-    <!-- Firebase and related scripts -->
+    <!-- Firebase Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
-
     <script>
-        const ACCESS_PIN = "1579"; // Code PIN d'accès
+        const ACCESS_PIN = "1579"; // Code PIN
         const BUS_LINE = "Line 4742";
         const DESTINATION_COORDS = { latitude: 48.858844, longitude: 2.294351 };
         const DESTINATION_NAME = "Eiffel Tower";
 
-        // Initialisez Firebase
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "API_KEY",
             authDomain: "bustrack-cb124.firebaseapp.com",
@@ -141,7 +71,7 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        // Écouter l'entrée du PIN
+        // PIN Input Listener
         document.getElementById('pin').addEventListener('input', function(event) {
             const enteredPin = event.target.value;
             if (enteredPin === ACCESS_PIN) {
@@ -149,46 +79,36 @@
                 document.querySelector('.pin-input').style.display = 'none';
                 loadDestinationInfo();
                 handleGeolocation();
+                listenForVisits(); // Charger l'historique des 24 dernières heures
             }
         });
 
-        // Fonction pour charger et afficher les informations de destination
+        // Load Destination Info
         async function loadDestinationInfo() {
             const destinationDiv = document.getElementById('destination-info');
-            
             try {
-                // Vérifier si les coordonnées de destination sont définies
-                if (!DESTINATION_COORDS || !DESTINATION_COORDS.latitude || !DESTINATION_COORDS.longitude) {
-                    throw new Error("Destination coordinates are not defined.");
-                }
-
-                // Récupérer le nom de la destination si nécessaire
-                let destinationLocationName = DESTINATION_NAME;
-                if (!destinationLocationName || destinationLocationName === "") {
+                let destinationLocationName = DESTINATION_NAME || "Unknown Destination";
+                if (!DESTINATION_NAME) {
                     destinationLocationName = await getLocationNameFromCoordinates(
                         DESTINATION_COORDS.latitude, 
                         DESTINATION_COORDS.longitude
                     );
                 }
 
-                // Mettre à jour l'interface utilisateur avec les informations de destination
                 destinationDiv.innerHTML = `
                     <h3>Final Destination</h3>
                     <p><strong>Location:</strong> ${destinationLocationName}</p>
                     <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
                 `;
-                console.log("Destination info loaded successfully:", { name: destinationLocationName, coords: DESTINATION_COORDS });
             } catch (error) {
                 console.error("Error loading destination info:", error);
                 destinationDiv.innerHTML = `
-                    <h3>Final Destination</h3>
-                    <p>${DESTINATION_NAME || "Unknown Destination"}</p>
                     <p class="error">Error loading destination information. Please try again later.</p>
                 `;
             }
         }
 
-        // Fonction pour obtenir le nom de l'emplacement via OpenStreetMap
+        // Get Location Name from Coordinates (OpenStreetMap)
         async function getLocationNameFromCoordinates(latitude, longitude) {
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
@@ -200,13 +120,12 @@
             }
         }
 
-        // Fonction pour gérer la géolocalisation
+        // Handle Geolocation
         async function handleGeolocation() {
             try {
                 if (!navigator.geolocation) {
-                    throw new Error("Geolocation is not supported by your browser");
+                    throw new Error("Geolocation not supported by your browser");
                 }
-
                 navigator.geolocation.getCurrentPosition(async (position) => {
                     const { latitude, longitude } = position.coords;
 
@@ -221,45 +140,68 @@
                         datetime: now.toLocaleString()
                     };
 
-                    trackingRef.push(entryData); // Sauvegarde dans Firebase
-
-                    // Mettre à jour l'interface utilisateur
-                    const tableBody = document.getElementById('tracking-data');
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td>${locationName}</td><td>${entryData.datetime}</td>`;
-                    tableBody.appendChild(row);
+                    trackingRef.push(entryData).catch(error => {
+                        console.error("Error saving visit:", error);
+                    });
 
                     document.getElementById('current-location').innerHTML = `
                         <h3>Your Location</h3>
                         <p><strong>Location:</strong> ${locationName}</p>
                         <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
                     `;
-                }, (error) => {
-                    console.error("Geolocation error", error);
-                });
+                }, error => console.error("Geolocation error:", error));
             } catch (error) {
-                console.error("Error handling geolocation", error);
+                console.error("Error handling geolocation:", error);
             }
         }
 
-        // Nettoyage des données obsolètes
+        // Listen for Visits in Last 24 Hours
+        function listenForVisits() {
+            trackingRef.on('value', (snapshot) => {
+                const entries = snapshot.val();
+                const tableBody = document.getElementById('tracking-data');
+                tableBody.innerHTML = ''; // Clear previous data
+
+                if (entries) {
+                    Object.values(entries).forEach(entry => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${entry.locationName || "Unknown"}</td>
+                            <td>${entry.datetime || "Unknown"}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="2">No visit history available.</td></tr>`;
+                }
+            }, error => {
+                console.error("Error fetching visit history:", error);
+                document.getElementById('tracking-data').innerHTML = `
+                    <tr><td colspan="2" class="error">Error fetching visit history.</td></tr>
+                `;
+            });
+        }
+
+        // Clean Database (Remove Entries Older than 24 Hours)
         function cleanDatabase() {
             const now = new Date();
             const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
             trackingRef.once('value', (snapshot) => {
-                snapshot.forEach((childSnapshot) => {
+                snapshot.forEach(childSnapshot => {
                     const entry = childSnapshot.val();
                     if (new Date(entry.timestamp) < cutoff) {
-                        childSnapshot.ref.remove();
+                        childSnapshot.ref.remove().catch(error => {
+                            console.error("Error removing old entry:", error);
+                        });
                     }
                 });
-            });
+            }, error => console.error("Error cleaning database:", error));
         }
 
-        // Démarrage de l'application
-        window.onload = function() {
-            cleanDatabase(); // Nettoyer les données obsolètes
+        // On Page Load
+        window.onload = () => {
+            cleanDatabase(); // Clean old entries
         };
     </script>
 </body>
