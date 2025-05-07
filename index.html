@@ -124,6 +124,7 @@
         const ACCESS_PIN = "1579"; // Code PIN d'accès
         const BUS_LINE = "Line 4742";
         const DESTINATION_COORDS = { latitude: 48.858844, longitude: 2.294351 };
+        const DESTINATION_NAME = "Eiffel Tower";
 
         // Initialisez Firebase
         const firebaseConfig = {
@@ -146,9 +147,46 @@
             if (enteredPin === ACCESS_PIN) {
                 document.getElementById('content').style.display = 'block';
                 document.querySelector('.pin-input').style.display = 'none';
+                loadDestinationInfo();
                 handleGeolocation();
             }
         });
+
+        // Fonction pour charger et afficher les informations de destination
+        async function loadDestinationInfo() {
+            const destinationDiv = document.getElementById('destination-info');
+            
+            try {
+                // Vérifier si les coordonnées de destination sont définies
+                if (!DESTINATION_COORDS || !DESTINATION_COORDS.latitude || !DESTINATION_COORDS.longitude) {
+                    throw new Error("Destination coordinates are not defined.");
+                }
+
+                // Récupérer le nom de la destination si nécessaire
+                let destinationLocationName = DESTINATION_NAME;
+                if (!destinationLocationName || destinationLocationName === "") {
+                    destinationLocationName = await getLocationNameFromCoordinates(
+                        DESTINATION_COORDS.latitude, 
+                        DESTINATION_COORDS.longitude
+                    );
+                }
+
+                // Mettre à jour l'interface utilisateur avec les informations de destination
+                destinationDiv.innerHTML = `
+                    <h3>Final Destination</h3>
+                    <p><strong>Location:</strong> ${destinationLocationName}</p>
+                    <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
+                `;
+                console.log("Destination info loaded successfully:", { name: destinationLocationName, coords: DESTINATION_COORDS });
+            } catch (error) {
+                console.error("Error loading destination info:", error);
+                destinationDiv.innerHTML = `
+                    <h3>Final Destination</h3>
+                    <p>${DESTINATION_NAME || "Unknown Destination"}</p>
+                    <p class="error">Error loading destination information. Please try again later.</p>
+                `;
+            }
+        }
 
         // Fonction pour obtenir le nom de l'emplacement via OpenStreetMap
         async function getLocationNameFromCoordinates(latitude, longitude) {
