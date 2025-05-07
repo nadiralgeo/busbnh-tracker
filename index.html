@@ -5,7 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bus Tracker</title>
     <style>
-        /* Styles identiques à votre version */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .location-info, .destination-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f8f5;
+            border-radius: 5px;
+            border-left: 5px solid #1abc9c;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 10px;
+            background-color: #fadbd8;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+        .pin-input {
+            text-align: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -30,7 +99,6 @@
             
             <div class="history">
                 <h2>Bus Tracking Data (Last 24 Hours)</h2>
-                <p>Sorted by distance from final destination (farthest first)</p>
                 <table id="tracking-table">
                     <thead>
                         <tr>
@@ -54,19 +122,10 @@
 
     <script>
         const ACCESS_PIN = "1579"; // Code PIN d'accès
-
-        // Vérification du code PIN
-        document.getElementById('pin').addEventListener('input', function(event) {
-            const enteredPin = event.target.value;
-            if (enteredPin === ACCESS_PIN) {
-                document.getElementById('content').style.display = 'block';
-                document.querySelector('.pin-input').style.display = 'none';
-                handleGeolocation(); // Démarre la géolocalisation automatiquement
-            }
-        });
-
         const BUS_LINE = "Line 4742";
-        const DESTINATION_COORDS = { latitude: 48.858844, longitude: 2.294351 }; // Coordonnées de destination
+        const DESTINATION_COORDS = { latitude: 48.858844, longitude: 2.294351 };
+
+        // Initialisez Firebase
         const firebaseConfig = {
             apiKey: "API_KEY",
             authDomain: "bustrack-cb124.firebaseapp.com",
@@ -80,6 +139,16 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
+
+        // Écouter l'entrée du PIN
+        document.getElementById('pin').addEventListener('input', function(event) {
+            const enteredPin = event.target.value;
+            if (enteredPin === ACCESS_PIN) {
+                document.getElementById('content').style.display = 'block';
+                document.querySelector('.pin-input').style.display = 'none';
+                handleGeolocation();
+            }
+        });
 
         // Fonction pour obtenir le nom de l'emplacement via OpenStreetMap
         async function getLocationNameFromCoordinates(latitude, longitude) {
@@ -96,7 +165,9 @@
         // Fonction pour gérer la géolocalisation
         async function handleGeolocation() {
             try {
-                if (!navigator.geolocation) throw new Error("Geolocation not supported");
+                if (!navigator.geolocation) {
+                    throw new Error("Geolocation is not supported by your browser");
+                }
 
                 navigator.geolocation.getCurrentPosition(async (position) => {
                     const { latitude, longitude } = position.coords;
@@ -112,14 +183,19 @@
                         datetime: now.toLocaleString()
                     };
 
-                    trackingRef.push(entryData); // Enregistre dans Firebase
+                    trackingRef.push(entryData); // Sauvegarde dans Firebase
 
-                    // Ajoute dans l'interface utilisateur
+                    // Mettre à jour l'interface utilisateur
                     const tableBody = document.getElementById('tracking-data');
                     const row = document.createElement('tr');
                     row.innerHTML = `<td>${locationName}</td><td>${entryData.datetime}</td>`;
                     tableBody.appendChild(row);
 
+                    document.getElementById('current-location').innerHTML = `
+                        <h3>Your Location</h3>
+                        <p><strong>Location:</strong> ${locationName}</p>
+                        <p><strong>Coordinates:</strong> ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                    `;
                 }, (error) => {
                     console.error("Geolocation error", error);
                 });
@@ -128,7 +204,7 @@
             }
         }
 
-        // Nettoyage des données après 24 heures
+        // Nettoyage des données obsolètes
         function cleanDatabase() {
             const now = new Date();
             const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -143,9 +219,9 @@
             });
         }
 
-        // Démarre l'application
+        // Démarrage de l'application
         window.onload = function() {
-            cleanDatabase(); // Nettoie les données obsolètes
+            cleanDatabase(); // Nettoyer les données obsolètes
         };
     </script>
 </body>
