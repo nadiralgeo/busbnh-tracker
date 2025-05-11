@@ -191,16 +191,22 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+const database = firebase.database();
+
 // Fonction pour réinitialiser les données quotidiennes
 function resetDailyData() {
     const today = new Date().toISOString().split('T')[0]; // Obtenez la date actuelle (format YYYY-MM-DD)
 
-    // Récupérez la dernière date de mise à jour depuis Firebase
     const dateRef = database.ref('lastUpdate');
     dateRef.once('value', (snapshot) => {
         const lastUpdate = snapshot.val();
+        console.log("Last update from Firebase:", lastUpdate);
 
-        if (lastUpdate !== today) {
+        if (!lastUpdate) {
+            // Si la clé n'existe pas, initialisez-la avec la date actuelle
+            dateRef.set(today);
+            console.log("Initialized lastUpdate with today's date.");
+        } else if (lastUpdate !== today) {
             // Si la date a changé, réinitialisez les données
             trackingRef.remove()
                 .then(() => {
@@ -220,73 +226,71 @@ document.addEventListener('DOMContentLoaded', () => {
     resetDailyData();
 });
 
+const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        
-        const trackingRef = database.ref('bustracking/' + BUS_LINE);
+document.getElementById('pin').addEventListener('input', function(event) {
+    const enteredPin = event.target.value;
+    if (enteredPin === ACCESS_PIN) {
+        document.getElementById('content').style.display = 'block';
+        document.querySelector('.pin-input').style.display = 'none';
+        loadDestinationInfo();
+        handleGeolocation();
+        listenForVisits();
+    }
+});
 
-        document.getElementById('pin').addEventListener('input', function(event) {
-            const enteredPin = event.target.value;
-            if (enteredPin === ACCESS_PIN) {
-                document.getElementById('content').style.display = 'block';
-                document.querySelector('.pin-input').style.display = 'none';
-                loadDestinationInfo();
-                handleGeolocation();
-                listenForVisits();
-            }
-        });
+async function loadDestinationInfo() {
+    const destinationDiv = document.getElementById('destination-info');
+    try {
+        destinationDiv.innerHTML = `
+            <h3>Final Destination</h3>
+            <p><strong>Location:</strong> ${DESTINATION_NAME}</p>
+            <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
+        `;
+    } catch (error) {
+        console.error("Error loading destination info:", error);
+        destinationDiv.innerHTML = `<p class="error">Error loading destination information.</p>`;
+    }
+}
 
-        async function loadDestinationInfo() {
-            const destinationDiv = document.getElementById('destination-info');
-            try {
-                destinationDiv.innerHTML = `
-                    <h3>Final Destination</h3>
-                    <p><strong>Location:</strong> ${DESTINATION_NAME}</p>
-                    <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
-                `;
-            } catch (error) {
-                console.error("Error loading destination info:", error);
-                destinationDiv.innerHTML = `<p class="error">Error loading destination information.</p>`;
-            }
-        }
+async function handleGeolocation() {
+    if (!navigator.geolocation) {
+        console.error("Geolocation not supported.");
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        const now = new Date();
 
-        async function handleGeolocation() {
-            if (!navigator.geolocation) {
-                console.error("Geolocation not supported.");
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(async (position) => {
-                const { latitude, longitude } = position.coords;
-                const now = new Date();
+        const entry = {
+            locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
+            latitude,
+            longitude,
+            datetime: now.toLocaleString()
+        };
 
-                const entry = {
-                    locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
-                    latitude,
-                    longitude,
-                    datetime: now.toLocaleString()
-                };
+        trackingRef.push(entry);
+        listenForVisits();
+    });
+}
 
-                trackingRef.push(entry);
-                listenForVisits();
+function listenForVisits() {
+    trackingRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        const tableBody = document.getElementById('tracking-data');
+        tableBody.innerHTML = "";
+
+        if (data) {
+            Object.values(data).forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
+                tableBody.appendChild(row);
             });
+        } else {
+            tableBody.innerHTML = `<tr><td colspan="2">No tracking data available.</td></tr>`;
         }
-
-        function listenForVisits() {
-            trackingRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                const tableBody = document.getElementById('tracking-data');
-                tableBody.innerHTML = "";
-
-                if (data) {
-                    Object.values(data).forEach(entry => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
-                        tableBody.appendChild(row);
-                    });
-                } else {
-                    tableBody.innerHTML = `<tr><td colspan="2">No tracking data available.</td></tr>`;
-                }
-            });
-        }
+    });
+}
     </script>
 </body>
 </html>
