@@ -190,6 +190,38 @@
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
+
+// Fonction pour réinitialiser les données quotidiennes
+function resetDailyData() {
+    const today = new Date().toISOString().split('T')[0]; // Obtenez la date actuelle (format YYYY-MM-DD)
+
+    // Récupérez la dernière date de mise à jour depuis Firebase
+    const dateRef = database.ref('lastUpdate');
+    dateRef.once('value', (snapshot) => {
+        const lastUpdate = snapshot.val();
+
+        if (lastUpdate !== today) {
+            // Si la date a changé, réinitialisez les données
+            trackingRef.remove()
+                .then(() => {
+                    console.log("Tracking data reset for the new day.");
+                    // Mettez à jour la date de dernière mise à jour
+                    dateRef.set(today);
+                })
+                .catch((error) => {
+                    console.error("Error resetting data:", error);
+                });
+        }
+    });
+}
+
+// Appelez la fonction lors du chargement de la page
+document.addEventListener('DOMContentLoaded', () => {
+    resetDailyData();
+});
+
+
+        
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
         document.getElementById('pin').addEventListener('input', function(event) {
