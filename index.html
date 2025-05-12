@@ -192,39 +192,44 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        // Function to check and clear old data
-        function clearOldData() {
-            const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000; // 24 hours
-            const cutoffTime = Date.now() - DAY_IN_MILLISECONDS;
+        // Fonction pour obtenir le début de la journée actuelle
+        function getStartOfToday() {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            return now;
+        }
 
+        // Fonction pour vérifier et nettoyer les anciennes données
+        function clearOldData() {
+            const startOfToday = getStartOfToday();
             trackingRef.once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    // Create an array of entries to keep or remove
+                    // Filtrer et ne garder que les entrées de la journée en cours
                     const entriesToKeep = {};
                     Object.entries(data).forEach(([key, entry]) => {
-                        const entryTime = new Date(entry.datetime).getTime();
-                        if (entryTime > cutoffTime) {
+                        const entryDate = new Date(entry.datetime);
+                        if (entryDate >= startOfToday) {
                             entriesToKeep[key] = entry;
                         }
                     });
 
-                    // Replace old data with new data
-                    trackingRef.set(entriesToKeep)
+                    // Remplacer les données existantes par les nouvelles données
+                    return trackingRef.set(entriesToKeep)
                         .then(() => {
-                            console.log('Old tracking data cleared');
+                            console.log('Données de suivi obsolètes supprimées');
                         })
                         .catch((error) => {
-                            console.error('Error clearing old data:', error);
+                            console.error('Erreur lors de la suppression des anciennes données :', error);
                         });
                 }
             });
         }
 
-        // Check and clear old data every 24 hours
-        setInterval(clearOldData, 24 * 60 * 60 * 1000);
+        // Vérifier et supprimer les anciennes données toutes les heures
+        setInterval(clearOldData, 60 * 60 * 1000);
 
-        // Also clear old data when the page loads
+        // Nettoyer les données lors du chargement de la page
         document.addEventListener('DOMContentLoaded', clearOldData);
 
         document.getElementById('pin').addEventListener('input', function(event) {
@@ -274,19 +279,30 @@
         }
 
         function listenForVisits() {
+            const startOfToday = getStartOfToday();
             trackingRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 const tableBody = document.getElementById('tracking-data');
                 tableBody.innerHTML = "";
 
                 if (data) {
-                    Object.values(data).forEach(entry => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
-                        tableBody.appendChild(row);
+                    // Filtrer et afficher uniquement les entrées de la journée en cours
+                    const todayEntries = Object.values(data).filter(entry => {
+                        const entryDate = new Date(entry.datetime);
+                        return entryDate >= startOfToday;
                     });
+
+                    if (todayEntries.length > 0) {
+                        todayEntries.forEach(entry => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
+                            tableBody.appendChild(row);
+                        });
+                    } else {
+                        tableBody.innerHTML = `<tr><td colspan="2">Aucune donnée de suivi disponible aujourd'hui.</td></tr>`;
+                    }
                 } else {
-                    tableBody.innerHTML = `<tr><td colspan="2">No tracking data available.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="2">Aucune donnée de suivi disponible.</td></tr>`;
                 }
             });
         }
