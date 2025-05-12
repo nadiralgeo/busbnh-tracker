@@ -192,6 +192,41 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
+        // Function to check and clear old data
+        function clearOldData() {
+            const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000; // 24 hours
+            const cutoffTime = Date.now() - DAY_IN_MILLISECONDS;
+
+            trackingRef.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    // Create an array of entries to keep or remove
+                    const entriesToKeep = {};
+                    Object.entries(data).forEach(([key, entry]) => {
+                        const entryTime = new Date(entry.datetime).getTime();
+                        if (entryTime > cutoffTime) {
+                            entriesToKeep[key] = entry;
+                        }
+                    });
+
+                    // Replace old data with new data
+                    trackingRef.set(entriesToKeep)
+                        .then(() => {
+                            console.log('Old tracking data cleared');
+                        })
+                        .catch((error) => {
+                            console.error('Error clearing old data:', error);
+                        });
+                }
+            });
+        }
+
+        // Check and clear old data every 24 hours
+        setInterval(clearOldData, 24 * 60 * 60 * 1000);
+
+        // Also clear old data when the page loads
+        document.addEventListener('DOMContentLoaded', clearOldData);
+
         document.getElementById('pin').addEventListener('input', function(event) {
             const enteredPin = event.target.value;
             if (enteredPin === ACCESS_PIN) {
