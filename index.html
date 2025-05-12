@@ -5,7 +5,128 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bus Tracker</title>
     <style>
-        /* Votre CSS reste inchangé */
+        /* Design minimaliste et moderne */
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .pin-input, .location-info, .destination-info, .history {
+            margin-bottom: 20px;
+        }
+
+        .pin-input label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .pin-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .refresh-btn {
+            display: inline-block;
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 12px;
+        }
+
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .location-info, .destination-info {
+            background-color: #f8faff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+        }
+
+        .history {
+            background: #fefefe;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #ddd;
+        }
+
+        .history h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 10px;
+            text-align: center;
+            background: #fcecec;
+            border-radius: 8px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #bbb;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -14,10 +135,33 @@
         <div class="pin-input">
             <label for="pin">Enter Access PIN:</label>
             <input type="password" id="pin" placeholder="Enter your PIN" />
-            <p id="pin-error" class="error" style="display: none;">Invalid PIN. Please try again.</p>
         </div>
         <div id="content" style="display: none;">
-            <!-- Contenu reste inchangé -->
+            <div id="current-location" class="location-info">
+                <p class="loading">Getting your current location...</p>
+            </div>
+
+            <div id="destination-info" class="destination-info">
+                <p class="loading">Loading destination information...</p>
+            </div>
+
+            <div class="history">
+                <h2>Bus Tracking History</h2>
+                <p>Collaborate by marking the bus stops you passed!</p>
+                <table id="tracking-table">
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracking-data">
+                        <tr>
+                            <td colspan="2" class="loading">Loading tracking history...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -25,7 +169,7 @@
         Designed for collaborative bus tracking. Stay connected!
     </footer>
 
-    <!-- Firebase et JavaScript -->
+    <!-- Firebase and JavaScript Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
     <script>
@@ -48,25 +192,6 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        // Fonction pour réinitialiser les données quotidiennes
-        function resetDailyData() {
-            const today = new Date().toISOString().split('T')[0];
-            const dateRef = database.ref('lastUpdate');
-            dateRef.once('value', (snapshot) => {
-                const lastUpdate = snapshot.val();
-
-                if (!lastUpdate || lastUpdate !== today) {
-                    trackingRef.remove()
-                        .then(() => dateRef.set(today))
-                        .catch((error) => console.error("Error resetting data:", error));
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            resetDailyData();
-        });
-
         document.getElementById('pin').addEventListener('input', function(event) {
             const enteredPin = event.target.value;
             if (enteredPin === ACCESS_PIN) {
@@ -75,8 +200,7 @@
                 loadDestinationInfo();
                 handleGeolocation();
                 listenForVisits();
-            } else if (enteredPin.length === ACCESS_PIN.length) {
-                document.getElementById('pin-error').style.display = 'block';
+                deleteOldEntries(); // Supprime les entrées obsolètes
             }
         });
 
@@ -99,7 +223,6 @@
                 console.error("Geolocation not supported.");
                 return;
             }
-
             navigator.geolocation.getCurrentPosition(async (position) => {
                 const { latitude, longitude } = position.coords;
                 const now = new Date();
@@ -108,13 +231,11 @@
                     locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
                     latitude,
                     longitude,
-                    datetime: now.toLocaleString()
+                    timestamp: now.getTime()
                 };
 
                 trackingRef.push(entry);
                 listenForVisits();
-            }, (error) => {
-                console.error("Geolocation error:", error);
             });
         }
 
@@ -127,11 +248,30 @@
                 if (data) {
                     Object.values(data).forEach(entry => {
                         const row = document.createElement('tr');
-                        row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
+                        const date = new Date(entry.timestamp);
+                        row.innerHTML = `<td>${entry.locationName}</td><td>${date.toLocaleString()}</td>`;
                         tableBody.appendChild(row);
                     });
                 } else {
                     tableBody.innerHTML = `<tr><td colspan="2">No tracking data available.</td></tr>`;
+                }
+            });
+        }
+
+        function deleteOldEntries() {
+            const now = Date.now();
+            const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+
+            trackingRef.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    Object.entries(data).forEach(([key, value]) => {
+                        if (value.timestamp < twentyFourHoursAgo) {
+                            trackingRef.child(key).remove()
+                                .then(() => console.log(`Entry ${key} removed`))
+                                .catch((error) => console.error(`Error removing entry ${key}:`, error));
+                        }
+                    });
                 }
             });
         }
