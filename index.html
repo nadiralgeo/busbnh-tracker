@@ -192,36 +192,44 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        // Fonction pour obtenir le début de la journée actuelle
-        function getStartOfToday() {
+        // Fonction pour obtenir le timestamp du début de la journée actuelle
+        function getStartOfTodayTimestamp() {
             const now = new Date();
             now.setHours(0, 0, 0, 0);
-            return now;
+            return now.getTime();
         }
 
         // Fonction pour vérifier et nettoyer les anciennes données
         function clearOldData() {
-            const startOfToday = getStartOfToday();
+            const startOfTodayTimestamp = getStartOfTodayTimestamp();
             trackingRef.once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     // Filtrer et ne garder que les entrées de la journée en cours
                     const entriesToKeep = {};
+                    let hasOldEntries = false;
+
                     Object.entries(data).forEach(([key, entry]) => {
-                        const entryDate = new Date(entry.datetime);
-                        if (entryDate >= startOfToday) {
+                        // Convertir la date en timestamp
+                        const entryTimestamp = new Date(entry.datetime).getTime();
+                        
+                        if (entryTimestamp >= startOfTodayTimestamp) {
                             entriesToKeep[key] = entry;
+                        } else {
+                            hasOldEntries = true;
                         }
                     });
 
-                    // Remplacer les données existantes par les nouvelles données
-                    return trackingRef.set(entriesToKeep)
-                        .then(() => {
-                            console.log('Données de suivi obsolètes supprimées');
-                        })
-                        .catch((error) => {
-                            console.error('Erreur lors de la suppression des anciennes données :', error);
-                        });
+                    // Ne mettre à jour que s'il y a des entrées à supprimer
+                    if (hasOldEntries) {
+                        return trackingRef.set(entriesToKeep)
+                            .then(() => {
+                                console.log('Données de suivi obsolètes supprimées');
+                            })
+                            .catch((error) => {
+                                console.error('Erreur lors de la suppression des anciennes données :', error);
+                            });
+                    }
                 }
             });
         }
@@ -270,7 +278,7 @@
                     locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
                     latitude,
                     longitude,
-                    datetime: now.toLocaleString()
+                    datetime: now.toISOString() // Utiliser ISO string pour une comparaison précise
                 };
 
                 trackingRef.push(entry);
@@ -279,7 +287,7 @@
         }
 
         function listenForVisits() {
-            const startOfToday = getStartOfToday();
+            const startOfTodayTimestamp = getStartOfTodayTimestamp();
             trackingRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 const tableBody = document.getElementById('tracking-data');
@@ -288,11 +296,14 @@
                 if (data) {
                     // Filtrer et afficher uniquement les entrées de la journée en cours
                     const todayEntries = Object.values(data).filter(entry => {
-                        const entryDate = new Date(entry.datetime);
-                        return entryDate >= startOfToday;
+                        const entryTimestamp = new Date(entry.datetime).getTime();
+                        return entryTimestamp >= startOfTodayTimestamp;
                     });
 
                     if (todayEntries.length > 0) {
+                        // Trier les entrées par date
+                        todayEntries.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+                        
                         todayEntries.forEach(entry => {
                             const row = document.createElement('tr');
                             row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
