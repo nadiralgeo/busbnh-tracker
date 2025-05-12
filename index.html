@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bus Tracker</title>
     <style>
-        /* Design minimaliste et moderne */
         body {
             font-family: 'Roboto', Arial, sans-serif;
             background-color: #f9f9f9;
@@ -47,25 +46,6 @@
             font-size: 16px;
         }
 
-        .refresh-btn {
-            display: inline-block;
-            width: 100%;
-            padding: 10px 16px;
-            font-size: 16px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin-top: 12px;
-        }
-
-        .refresh-btn:hover {
-            background-color: #2980b9;
-        }
-
         .location-info, .destination-info {
             background-color: #f8faff;
             padding: 15px;
@@ -80,12 +60,6 @@
             border: 1px solid #ddd;
         }
 
-        .history h2 {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 12px;
-        }
-
         table {
             width: 100%;
             border-collapse: collapse;
@@ -97,35 +71,11 @@
             border-bottom: 1px solid #ddd;
         }
 
-        th {
-            background-color: #f4f4f4;
-            font-weight: bold;
-        }
-
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-
         .loading {
             text-align: center;
             padding: 10px;
             color: #888;
             font-style: italic;
-        }
-
-        .error {
-            color: #e74c3c;
-            padding: 10px;
-            text-align: center;
-            background: #fcecec;
-            border-radius: 8px;
-        }
-
-        footer {
-            text-align: center;
-            margin-top: 20px;
-            color: #bbb;
-            font-size: 14px;
         }
     </style>
 </head>
@@ -147,7 +97,6 @@
 
             <div class="history">
                 <h2>Bus Tracking History</h2>
-                <p>Collaborate by marking the bus stops you passed!</p>
                 <table id="tracking-table">
                     <thead>
                         <tr>
@@ -165,19 +114,16 @@
         </div>
     </div>
 
-    <footer>
-        Designed for collaborative bus tracking. Stay connected!
-    </footer>
-
-    <!-- Firebase and JavaScript Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
     <script>
-        const ACCESS_PIN = "1579"; // Code PIN
+        // Configuration constante
+        const ACCESS_PIN = "1579";
         const BUS_LINE = "Line 4742";
         const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
         const DESTINATION_NAME = "TRAVAIL";
 
+        // Configuration Firebase
         const firebaseConfig = {
             apiKey: "API_KEY",
             authDomain: "bustrack-cb124.firebaseapp.com",
@@ -188,89 +134,76 @@
             appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
         };
 
+        // Initialisation Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        // Fonction pour obtenir le timestamp du début de la journée actuelle
-        function getStartOfTodayTimestamp() {
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            return now.getTime();
+        // Fonctions utilitaires
+        function getTodayStart() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return today;
         }
 
-        // Fonction pour supprimer complètement toutes les anciennes données
-        function clearAllOldData() {
-            const startOfTodayTimestamp = getStartOfTodayTimestamp();
+        function isToday(dateString) {
+            const today = getTodayStart();
+            const entryDate = new Date(dateString);
+            return entryDate >= today;
+        }
+
+        // Fonction de nettoyage TOTALE
+        function purgeOldData() {
+            // Récupérer toutes les entrées et les filtrer
             trackingRef.once('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data) {
-                    // Filtrer et ne garder que les entrées de la journée en cours
-                    const entriesToKeep = {};
-                    let hasOldEntries = false;
+                const todayEntries = {};
 
+                // Filtrer uniquement les entrées du jour
+                if (data) {
                     Object.entries(data).forEach(([key, entry]) => {
-                        // Convertir la date en timestamp
-                        const entryTimestamp = new Date(entry.datetime).getTime();
-                        
-                        if (entryTimestamp >= startOfTodayTimestamp) {
-                            entriesToKeep[key] = entry;
-                        } else {
-                            hasOldEntries = true;
+                        if (isToday(entry.datetime)) {
+                            todayEntries[key] = entry;
                         }
                     });
-
-                    // Si des entrées obsolètes existent, remplacer complètement les données
-                    if (hasOldEntries) {
-                        trackingRef.set(entriesToKeep)
-                            .then(() => {
-                                console.log('Toutes les anciennes données ont été supprimées');
-                            })
-                            .catch((error) => {
-                                console.error('Erreur lors de la suppression des anciennes données :', error);
-                            });
-                    }
                 }
+
+                // Remplacer COMPLETEMENT les données
+                trackingRef.set(todayEntries)
+                    .then(() => {
+                        console.log('✅ Données anciennes COMPLETEMENT supprimées');
+                    })
+                    .catch((error) => {
+                        console.error('❌ Erreur de suppression:', error);
+                    });
             });
         }
 
-        // Supprimer les anciennes données toutes les heures
-        setInterval(clearAllOldData, 60 * 60 * 1000);
+        // Nettoyer à chaque heure
+        setInterval(purgeOldData, 60 * 60 * 1000);
 
-        // Supprimer les anciennes données au chargement de la page
-        document.addEventListener('DOMContentLoaded', clearAllOldData);
+        // Nettoyer au chargement
+        document.addEventListener('DOMContentLoaded', purgeOldData);
 
+        // Gestion de l'authentification PIN
         document.getElementById('pin').addEventListener('input', function(event) {
             const enteredPin = event.target.value;
             if (enteredPin === ACCESS_PIN) {
                 document.getElementById('content').style.display = 'block';
                 document.querySelector('.pin-input').style.display = 'none';
-                loadDestinationInfo();
                 handleGeolocation();
                 listenForVisits();
             }
         });
 
-        async function loadDestinationInfo() {
-            const destinationDiv = document.getElementById('destination-info');
-            try {
-                destinationDiv.innerHTML = `
-                    <h3>Final Destination</h3>
-                    <p><strong>Location:</strong> ${DESTINATION_NAME}</p>
-                    <p><strong>Coordinates:</strong> ${DESTINATION_COORDS.latitude}, ${DESTINATION_COORDS.longitude}</p>
-                `;
-            } catch (error) {
-                console.error("Error loading destination info:", error);
-                destinationDiv.innerHTML = `<p class="error">Error loading destination information.</p>`;
-            }
-        }
-
-        async function handleGeolocation() {
+        // Géolocalisation
+        function handleGeolocation() {
             if (!navigator.geolocation) {
-                console.error("Geolocation not supported.");
+                console.error("Géolocalisation non supportée");
                 return;
             }
-            navigator.geolocation.getCurrentPosition(async (position) => {
+
+            navigator.geolocation.getCurrentPosition((position) => {
                 const { latitude, longitude } = position.coords;
                 const now = new Date();
 
@@ -278,42 +211,37 @@
                     locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
                     latitude,
                     longitude,
-                    datetime: now.toISOString() // Utiliser ISO string pour une comparaison précise
+                    datetime: now.toISOString() // Date précise en ISO
                 };
 
+                // Ajouter l'entrée
                 trackingRef.push(entry);
-                listenForVisits();
             });
         }
 
+        // Écoute des visites
         function listenForVisits() {
-            const startOfTodayTimestamp = getStartOfTodayTimestamp();
             trackingRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 const tableBody = document.getElementById('tracking-data');
                 tableBody.innerHTML = "";
 
                 if (data) {
-                    // Filtrer et afficher uniquement les entrées de la journée en cours
-                    const todayEntries = Object.values(data).filter(entry => {
-                        const entryTimestamp = new Date(entry.datetime).getTime();
-                        return entryTimestamp >= startOfTodayTimestamp;
-                    });
+                    // Ne récupérer que les entrées du jour
+                    const todayEntries = Object.values(data).filter(entry => isToday(entry.datetime));
+                    
+                    // Trier par date
+                    todayEntries.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
 
-                    if (todayEntries.length > 0) {
-                        // Trier les entrées par date
-                        todayEntries.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
-                        
-                        todayEntries.forEach(entry => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
-                            tableBody.appendChild(row);
-                        });
-                    } else {
-                        tableBody.innerHTML = `<tr><td colspan="2">Aucune donnée de suivi disponible aujourd'hui.</td></tr>`;
-                    }
-                } else {
-                    tableBody.innerHTML = `<tr><td colspan="2">Aucune donnée de suivi disponible.</td></tr>`;
+                    // Afficher les entrées
+                    todayEntries.forEach(entry => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${entry.locationName}</td>
+                            <td>${new Date(entry.datetime).toLocaleString()}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
                 }
             });
         }
