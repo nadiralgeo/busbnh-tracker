@@ -200,7 +200,6 @@
                 loadDestinationInfo();
                 handleGeolocation();
                 listenForVisits();
-                deleteOldEntries(); // Supprime les entrées obsolètes
             }
         });
 
@@ -231,7 +230,7 @@
                     locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
                     latitude,
                     longitude,
-                    timestamp: now.getTime()
+                    datetime: now.toLocaleString()
                 };
 
                 trackingRef.push(entry);
@@ -248,30 +247,11 @@
                 if (data) {
                     Object.values(data).forEach(entry => {
                         const row = document.createElement('tr');
-                        const date = new Date(entry.timestamp);
-                        row.innerHTML = `<td>${entry.locationName}</td><td>${date.toLocaleString()}</td>`;
+                        row.innerHTML = `<td>${entry.locationName}</td><td>${entry.datetime}</td>`;
                         tableBody.appendChild(row);
                     });
                 } else {
                     tableBody.innerHTML = `<tr><td colspan="2">No tracking data available.</td></tr>`;
-                }
-            });
-        }
-
-        function deleteOldEntries() {
-            const now = Date.now();
-            const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
-
-            trackingRef.once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    Object.entries(data).forEach(([key, value]) => {
-                        if (value.timestamp < twentyFourHoursAgo) {
-                            trackingRef.child(key).remove()
-                                .then(() => console.log(`Entry ${key} removed`))
-                                .catch((error) => console.error(`Error removing entry ${key}:`, error));
-                        }
-                    });
                 }
             });
         }
