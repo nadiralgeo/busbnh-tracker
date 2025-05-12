@@ -139,7 +139,26 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-        // Fonctions utilitaires
+        // Fonctions utilitaires pour la gestion des dates
+        function parseDate(dateString) {
+            // Essayer de parser différents formats de date
+            let parsedDate;
+            
+            // Essayer le format ISO
+            parsedDate = new Date(dateString);
+            
+            // Si ça ne marche pas, essayer le format localisé
+            if (isNaN(parsedDate.getTime())) {
+                // Format localisé comme "07/05/2025 11:03:29"
+                const [datePart, timePart] = dateString.split(' ');
+                const [day, month, year] = datePart.split('/');
+                const [hours, minutes, seconds] = timePart.split(':');
+                parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+            
+            return parsedDate;
+        }
+
         function getTodayStart() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -148,7 +167,7 @@
 
         function isToday(dateString) {
             const today = getTodayStart();
-            const entryDate = new Date(dateString);
+            const entryDate = parseDate(dateString);
             return entryDate >= today;
         }
 
@@ -207,11 +226,14 @@
                 const { latitude, longitude } = position.coords;
                 const now = new Date();
 
+                // Revenir au format localisé
+                const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
                 const entry = {
                     locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
                     latitude,
                     longitude,
-                    datetime: now.toISOString() // Date précise en ISO
+                    datetime: formattedDate // Revenir au format précédent
                 };
 
                 // Ajouter l'entrée
@@ -231,14 +253,14 @@
                     const todayEntries = Object.values(data).filter(entry => isToday(entry.datetime));
                     
                     // Trier par date
-                    todayEntries.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+                    todayEntries.sort((a, b) => parseDate(a.datetime) - parseDate(b.datetime));
 
                     // Afficher les entrées
                     todayEntries.forEach(entry => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${entry.locationName}</td>
-                            <td>${new Date(entry.datetime).toLocaleString()}</td>
+                            <td>${entry.datetime}</td>
                         `;
                         tableBody.appendChild(row);
                     });
