@@ -199,8 +199,8 @@
             return now.getTime();
         }
 
-        // Fonction pour vérifier et nettoyer les anciennes données
-        function clearOldData() {
+        // Fonction pour supprimer complètement toutes les anciennes données
+        function clearAllOldData() {
             const startOfTodayTimestamp = getStartOfTodayTimestamp();
             trackingRef.once('value', (snapshot) => {
                 const data = snapshot.val();
@@ -220,11 +220,11 @@
                         }
                     });
 
-                    // Ne mettre à jour que s'il y a des entrées à supprimer
+                    // Si des entrées obsolètes existent, remplacer complètement les données
                     if (hasOldEntries) {
-                        return trackingRef.set(entriesToKeep)
+                        trackingRef.set(entriesToKeep)
                             .then(() => {
-                                console.log('Données de suivi obsolètes supprimées');
+                                console.log('Toutes les anciennes données ont été supprimées');
                             })
                             .catch((error) => {
                                 console.error('Erreur lors de la suppression des anciennes données :', error);
@@ -234,11 +234,11 @@
             });
         }
 
-        // Vérifier et supprimer les anciennes données toutes les heures
-        setInterval(clearOldData, 60 * 60 * 1000);
+        // Supprimer les anciennes données toutes les heures
+        setInterval(clearAllOldData, 60 * 60 * 1000);
 
-        // Nettoyer les données lors du chargement de la page
-        document.addEventListener('DOMContentLoaded', clearOldData);
+        // Supprimer les anciennes données au chargement de la page
+        document.addEventListener('DOMContentLoaded', clearAllOldData);
 
         document.getElementById('pin').addEventListener('input', function(event) {
             const enteredPin = event.target.value;
