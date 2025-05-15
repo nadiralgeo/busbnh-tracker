@@ -392,6 +392,25 @@
         .down {
             color: #ef4444;
         }
+
+        /* Pin error message */
+        .pin-error {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Pin shake animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
     </style>
 </head>
 <body>
@@ -401,6 +420,7 @@
         <div class="pin-input glass-card">
             <label for="pin"><i class="fas fa-lock"></i> Enter Access PIN</label>
             <input type="password" id="pin" placeholder="• • • •" maxlength="4" />
+            <div id="pin-error" class="pin-error">Code PIN incorrect. Veuillez réessayer.</div>
         </div>
         
         <div id="content" style="display: none;">
@@ -558,6 +578,60 @@
         const database = firebase.database();
         const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
+        // DOM Elements
+        const pinInput = document.getElementById('pin');
+        const pinError = document.getElementById('pin-error');
+        const contentDiv = document.getElementById('content');
+        const destinationName = document.getElementById('destination-name');
+        const trackingData = document.getElementById('tracking-data');
+        const mapContainer = document.getElementById('map-container');
+        const quickStopButtons = document.querySelectorAll('.quick-stop-btn');
+        const useGeolocationBtn = document.getElementById('use-geolocation');
+        const cleanDataBtn = document.getElementById('clean-data');
+
+        // Initialize map
+        let map;
+        let marker;
+
+        // Pin validation
+        function validatePin() {
+            if (pinInput.value === ACCESS_PIN) {
+                pinInput.parentElement.style.display = 'none';
+                contentDiv.style.display = 'block';
+                
+                // Initialize content
+                initializeApp();
+                return true;
+            } else {
+                pinInput.classList.add('shake');
+                pinError.style.display = 'block';
+                setTimeout(() => {
+                    pinInput.classList.remove('shake');
+                }, 500);
+                return false;
+            }
+        }
+
+        // Add event listeners for PIN input
+        pinInput.addEventListener('input', function() {
+            // Auto-submit when 4 digits are entered
+            if (this.value.length === 4) {
+                validatePin();
+            }
+            
+            // Hide error message when typing
+            if (pinError.style.display === 'block') {
+                pinError.style.display = 'none';
+            }
+        });
+
+        pinInput.addEventListener('keypress', function(e) {
+            // Submit on Enter key
+            if (e.key === 'Enter') {
+                validatePin();
+            }
+        });
+
         // Fonctions utilitaires pour la gestion des dates
         function parseDate(dateString) {
             // Essayer de parser différents formats de date
@@ -707,11 +781,15 @@
                     })
                     .then(() => {
                         console.log('Nettoyage terminé avec succès');
+                        showStatus('Nettoyage des données terminé avec succès');
+                        loadTrackingData(); // Recharger les données
                         resolve();
                     })
                     .catch(error => {
                         console.error('Erreur lors du nettoyage:', error);
+                        showStatus('Erreur lors du nettoyage des données', true);
                         reject(error);
+                    
                     });
             });
         }
