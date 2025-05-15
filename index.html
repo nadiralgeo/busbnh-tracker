@@ -625,13 +625,13 @@
             }
         });
 
-        pinInput.addEventListener('keypress', function(e) {
-            // Submit on Enter key
-            if (e.key === 'Enter') {
-                validatePin();
-            }
-        });
-
+      pinInput.addEventListener('keydown', function(e) {
+    // Submit on Enter key
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        validatePin();
+    }
+});
         // Fonctions utilitaires pour la gestion des dates
         function parseDate(dateString) {
             // Essayer de parser différents formats de date
