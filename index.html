@@ -136,13 +136,10 @@
             <div class="quick-stops">
                 <h3>Arrêts habituels</h3>
                 <div id="quick-stops-buttons">
-                    <button class="quick-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">Zeralda</button>
-                    <button class="quick-stop-btn" data-name="SidiAbdallah1" data-lat="36.71623" data-lon="3.201724">SidiAbdallah1</button>
-                    <button class="quick-stop-btn" data-name="sidiAbdallah2" data-lat="36.68229506332563" data-lon="2.854013786507855">sidiAbdallah2</button>
-                    <button class="quick-stop-btn" data-name="sidiAbdallah3" data-lat="36.71000" data-lon="3.19800">sidiAbdallah3</button>
-                    <button class="quick-stop-btn" data-name="Rahmania" data-lat="36.72500" data-lon="3.20500">Rahmania</button>
-                    <button class="quick-stop-btn" data-name="Douera" data-lat="36.684369262072416" data-lon="2.950529435751952">Douera</button>
-                    <button class="quick-stop-btn" data-name="BirTouta" data-lat="36.71000" data-lon="3.19800">BirTouta</button>
+                    <button class="quick-stop-btn" data-name="Maison" data-lat="36.70000" data-lon="3.19000">Maison</button>
+                    <button class="quick-stop-btn" data-name="Travail" data-lat="36.71623" data-lon="3.201724">Travail</button>
+                    <button class="quick-stop-btn" data-name="École" data-lat="36.72500" data-lon="3.20500">École</button>
+                    <button class="quick-stop-btn" data-name="Marché" data-lat="36.71000" data-lon="3.19800">Marché</button>
                 </div>
                 <div style="margin-top: 10px">
                     <button id="use-geolocation" class="quick-stop-btn">Utiliser ma position actuelle</button>
@@ -256,42 +253,97 @@
             }, 3000);
         }
 
-        // Fonction de nettoyage TOTALE
+                // Fonction de nettoyage TOTALE
         function purgeOldData() {
-            console.log('Démarrage du nettoyage des données anciennes...');
-            // Récupérer toutes les entrées et les filtrer
-            trackingRef.once('value', (snapshot) => {
-                const data = snapshot.val();
-                const todayEntries = {};
-
-                // Filtrer uniquement les entrées du jour
-                if (data) {
-                    Object.entries(data).forEach(([key, entry]) => {
-                        // Vérifier si l'entrée a une date valide
-                        if (!entry.datetime) {
-                            console.log('Entrée sans date trouvée:', key);
-                            return; // Ignorer les entrées sans date
+            return new Promise((resolve, reject) => {
+                console.log('Démarrage du nettoyage approfondi des données anciennes');
+                
+                // Obtenir la date d'aujourd'hui à minuit
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayString = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+                
+                console.log(`Date de référence pour aujourd'hui: ${todayString}`);
+                
+                // Récupérer toutes les entrées
+                trackingRef.once('value')
+                    .then((snapshot) => {
+                        const data = snapshot.val();
+                        if (!data) {
+                            console.log('Aucune donnée trouvée dans la base');
+                            resolve();
+                            return;
                         }
                         
-                        // Afficher pour le débogage
-                        console.log(`Vérification entrée: ${entry.datetime}, Est aujourd'hui: ${isToday(entry.datetime)}`);
+                        console.log(`Total de ${Object.keys(data).length} entrées trouvées`);
                         
-                        if (isToday(entry.datetime)) {
-                            todayEntries[key] = entry;
-                        } else {
-                            console.log(`Entrée ancienne supprimée: ${entry.datetime}`);
-                        }
-                    });
-                }
-
-                // Remplacer COMPLETEMENT les données
-                trackingRef.set(todayEntries)
-                    .then(() => {
-                        console.log('✅ Données anciennes COMPLETEMENT supprimées');
-                        console.log(`Nombre d'entrées conservées: ${Object.keys(todayEntries).length}`);
+                        // Créer un nouvel objet avec seulement les entrées d'aujourd'hui
+                        const todayEntries = {};
+                        const keysToRemove = [];
+                        
+                        Object.entries(data).forEach(([key, entry]) => {
+                            try {
+                                if (!entry.datetime) {
+                                    console.log(`Entrée sans date (clé: ${key}) - À supprimer`);
+                                    keysToRemove.push(key);
+                                    return;
+                                }
+                                
+                                // Convertir la date de l'entrée
+                                let entryDate;
+                                
+                                if (entry.datetime.includes('/')) {
+                                    // Format DD/MM/YYYY HH:MM:SS
+                                    const [datePart] = entry.datetime.split(' ');
+                                    const [day, month, year] = datePart.split('/');
+                                    entryDate = new Date(year, month - 1, day);
+                                } else {
+                                    // Format ISO ou autre
+                                    entryDate = new Date(entry.datetime);
+                                }
+                                
+                                // Vérifier si la date est valide
+                                if (isNaN(entryDate.getTime())) {
+                                    console.log(`Date invalide dans l'entrée (clé: ${key}): ${entry.datetime} - À supprimer`);
+                                    keysToRemove.push(key);
+                                    return;
+                                }
+                                
+                                // Convertir en format YYYY-MM-DD pour comparaison
+                                const entryDateString = entryDate.toISOString().split('T')[0];
+                                console.log(`Entrée (clé: ${key}): ${entry.datetime} => ${entryDateString}`);
+                                
+                                if (entryDateString === todayString) {
+                                    console.log(`Entrée conservée (clé: ${key}): ${entry.datetime}`);
+                                    todayEntries[key] = entry;
+                                } else {
+                                    console.log(`Entrée ancienne (clé: ${key}): ${entry.datetime} - À supprimer`);
+                                    keysToRemove.push(key);
+                                }
+                            } catch (error) {
+                                console.error(`Erreur lors du traitement de l'entrée (clé: ${key}):`, error);
+                                keysToRemove.push(key);
+                            }
+                        });
+                        
+                        console.log(`${Object.keys(todayEntries).length} entrées à conserver, ${keysToRemove.length} entrées à supprimer`);
+                        
+                        // Supprimer toutes les anciennes entrées une par une
+                        const removePromises = keysToRemove.map(key => {
+                            return trackingRef.child(key).remove()
+                                .then(() => console.log(`Entrée supprimée avec succès: ${key}`))
+                                .catch(error => console.error(`Erreur lors de la suppression de l'entrée ${key}:`, error));
+                        });
+                        
+                        return Promise.all(removePromises);
                     })
-                    .catch((error) => {
-                        console.error('❌ Erreur de suppression:', error);
+                    .then(() => {
+                        console.log('Nettoyage terminé avec succès');
+                        resolve();
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors du nettoyage:', error);
+                        reject(error);
                     });
             });
         }
