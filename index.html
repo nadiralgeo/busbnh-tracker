@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -358,40 +359,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        .crypto-tracker {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            margin-top: 20px;
-        }
-        
-        .crypto-item {
-            padding: 10px 15px;
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            margin: 5px;
-        }
-        
-        .crypto-icon {
-            font-size: 20px;
-            margin-right: 10px;
-            color: var(--accent-color);
-        }
-        
-        .crypto-price {
-            font-weight: 600;
-        }
-        
-        .up {
-            color: #10b981;
-        }
-        
-        .down {
-            color: #ef4444;
-        }
 
         /* Pin error message */
         .pin-error {
@@ -486,37 +453,6 @@
                         </button>
                     </div>
                 </div>
-                
-                <!-- Crypto Tracker (Web3 Element) -->
-                <div class="glass-card full-width">
-                    <div class="card-header">
-                        <h3>Crypto Markets</h3>
-                        <i class="fab fa-bitcoin"></i>
-                    </div>
-                    <div class="crypto-tracker">
-                        <div class="crypto-item">
-                            <div class="crypto-icon"><i class="fab fa-bitcoin"></i></div>
-                            <div>
-                                <div>Bitcoin</div>
-                                <div class="crypto-price">$64,582 <span class="up">+2.4%</span></div>
-                            </div>
-                        </div>
-                        <div class="crypto-item">
-                            <div class="crypto-icon"><i class="fab fa-ethereum"></i></div>
-                            <div>
-                                <div>Ethereum</div>
-                                <div class="crypto-price">$3,124 <span class="up">+1.8%</span></div>
-                            </div>
-                        </div>
-                        <div class="crypto-item">
-                            <div class="crypto-icon"><i class="fas fa-chart-line"></i></div>
-                            <div>
-                                <div>Solana</div>
-                                <div class="crypto-price">$158 <span class="down">-0.5%</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- History Table -->
                 <div class="glass-card full-width">
@@ -561,6 +497,8 @@
         const BUS_LINE = "Line 4742";
         const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
         const DESTINATION_NAME = "TRAVAIL";
+        const DEFAULT_LAT = 36.7538;  // Alger center
+        const DEFAULT_LON = 3.0588;   // Alger center
 
         // Configuration Firebase
         const firebaseConfig = {
@@ -592,6 +530,7 @@
         // Initialize map
         let map;
         let marker;
+        let currentPosition = null;
 
         // Pin validation
         function validatePin() {
@@ -695,8 +634,118 @@
             }, 3000);
         }
 
+        // Initialize map function
+        function initializeMap() {
+            // If map already exists, remove it
+            if (map) {
+                map.remove();
+            }
+            
+            // Create new map
+            map = L.map('map-container').setView([DEFAULT_LAT, DEFAULT_LON], 12);
+            
+            // Add OpenStreetMap tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Add default marker
+            marker = L.marker([DEFAULT_LAT, DEFAULT_LON]).addTo(map)
+                .bindPopup('Alger Centre')
+                .openPopup();
+                
+            // Add destination marker
+            L.marker([DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude])
+                .addTo(map)
+                .bindPopup(`Destination: ${DESTINATION_NAME}`)
+                .openPopup();
+                
+            // Update map size after it's loaded
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
+            
+            return map;
+        }
+        
+        // Function to update map marker
+        function updateMapMarker(lat, lon, locationName) {
+            if (map && marker) {
+                // Update marker position
+                marker.setLatLng([lat, lon])
+                    .bindPopup(locationName)
+                    .openPopup();
+                
+                // Update map view to center on marker
+                map.setView([lat, lon], 14);
+                
+                // Store current position
+                currentPosition = {lat, lon, name: locationName};
+            }
+        }
+
+        // Function to handle geolocation
+        function useGeolocation() {
+            if ("geolocation" in navigator) {
+                showStatus("Récupération de votre position...");
+                
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        // Update map
+                        updateMapMarker(lat, lon, "Ma position actuelle");
+                        
+                        // Add entry to Firebase
+                        addLocationEntry("Ma position actuelle", lat, lon);
+                    },
+                    error => {
+                        showStatus(`Erreur de géolocalisation: ${error.message}`, true);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                showStatus("La géolocalisation n'est pas supportée par votre navigateur", true);
+            }
+        }
+
+        // Fonction pour ajouter une entrée de position
+        function addLocationEntry(locationName, latitude, longitude) {
+            const now = new Date();
+            const formattedDate = formatDate(now);
+
+            const entry = {
+                locationName: locationName,
+                latitude: latitude,
+                longitude: longitude,
+                datetime: formattedDate
+            };
+
+            // Ajouter l'entrée
+            trackingRef.push(entry)
+                .then(() => {
+                    showStatus(`Position '${locationName}' enregistrée avec succès`);
+                    
+                    // Update map if it exists
+                    updateMapMarker(latitude, longitude, locationName);
+                    
+                    // Refresh tracking data
+                    loadTrackingData();
+                })
+                .catch((error) => {
+                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+                });
+        }
+
         // Fonction de nettoyage TOTALE
         function purgeOldData() {
+            showStatus('Nettoyage des données en cours...');
+            
             return new Promise((resolve, reject) => {
                 console.log('Démarrage du nettoyage approfondi des données anciennes');
                 
@@ -713,6 +762,7 @@
                         const data = snapshot.val();
                         if (!data) {
                             console.log('Aucune donnée trouvée dans la base');
+                            showStatus('Aucune donnée à nettoyer');
                             resolve();
                             return;
                         }
