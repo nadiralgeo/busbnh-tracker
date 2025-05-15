@@ -28,7 +28,7 @@
             margin-bottom: 20px;
         }
 
-        .pin-input, .location-info, .destination-info, .history {
+        .pin-input, .location-info, .destination-info, .history, .quick-stops {
             margin-bottom: 20px;
         }
 
@@ -60,6 +60,28 @@
             border: 1px solid #ddd;
         }
 
+        .quick-stops {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .quick-stop-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .quick-stop-btn:hover {
+            background-color: #2980b9;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -77,6 +99,23 @@
             color: #888;
             font-style: italic;
         }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -87,16 +126,28 @@
             <input type="password" id="pin" placeholder="Enter your PIN" />
         </div>
         <div id="content" style="display: none;">
-            <div id="current-location" class="location-info">
-                <p class="loading">Getting your current location...</p>
-            </div>
-
+            <div id="status-message" class="status" style="display: none;"></div>
+            
             <div id="destination-info" class="destination-info">
-                <p class="loading">Loading destination information...</p>
+                <h3>Destination</h3>
+                <p id="destination-name"></p>
+            </div>
+            
+            <div class="quick-stops">
+                <h3>Arrêts habituels</h3>
+                <div id="quick-stops-buttons">
+                    <button class="quick-stop-btn" data-name="Maison" data-lat="36.70000" data-lon="3.19000">Maison</button>
+                    <button class="quick-stop-btn" data-name="Travail" data-lat="36.71623" data-lon="3.201724">Travail</button>
+                    <button class="quick-stop-btn" data-name="École" data-lat="36.72500" data-lon="3.20500">École</button>
+                    <button class="quick-stop-btn" data-name="Marché" data-lat="36.71000" data-lon="3.19800">Marché</button>
+                </div>
+                <div style="margin-top: 10px">
+                    <button id="use-geolocation" class="quick-stop-btn">Utiliser ma position actuelle</button>
+                </div>
             </div>
 
             <div class="history">
-                <h2>Bus Tracking History</h2>
+                <h3>Bus Tracking History</h3>
                 <table id="tracking-table">
                     <thead>
                         <tr>
@@ -159,6 +210,10 @@
             return parsedDate;
         }
 
+        function formatDate(date) {
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        }
+
         function getTodayStart() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -169,6 +224,19 @@
             const today = getTodayStart();
             const entryDate = parseDate(dateString);
             return entryDate >= today;
+        }
+
+        // Fonction pour afficher un message de statut
+        function showStatus(message, isError = false) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + (isError ? 'error' : 'success');
+            statusElement.style.display = 'block';
+            
+            // Masquer après 3 secondes
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
         }
 
         // Fonction de nettoyage TOTALE
@@ -198,11 +266,36 @@
             });
         }
 
+        // Fonction pour ajouter une entrée de position
+        function addLocationEntry(locationName, latitude, longitude) {
+            const now = new Date();
+            const formattedDate = formatDate(now);
+
+            const entry = {
+                locationName: locationName,
+                latitude: latitude,
+                longitude: longitude,
+                datetime: formattedDate
+            };
+
+            // Ajouter l'entrée
+            trackingRef.push(entry)
+                .then(() => {
+                    showStatus(`Position '${locationName}' enregistrée avec succès`);
+                })
+                .catch((error) => {
+                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+                });
+        }
+
         // Nettoyer à chaque heure
         setInterval(purgeOldData, 60 * 60 * 1000);
 
         // Nettoyer au chargement
-        document.addEventListener('DOMContentLoaded', purgeOldData);
+        document.addEventListener('DOMContentLoaded', () => {
+            purgeOldData();
+            document.getElementById('destination-name').textContent = DESTINATION_NAME;
+        });
 
         // Gestion de l'authentification PIN
         document.getElementById('pin').addEventListener('input', function(event) {
@@ -210,36 +303,42 @@
             if (enteredPin === ACCESS_PIN) {
                 document.getElementById('content').style.display = 'block';
                 document.querySelector('.pin-input').style.display = 'none';
-                handleGeolocation();
                 listenForVisits();
             }
         });
 
         // Géolocalisation
-        function handleGeolocation() {
+        document.getElementById('use-geolocation').addEventListener('click', function() {
             if (!navigator.geolocation) {
-                console.error("Géolocalisation non supportée");
+                showStatus("Géolocalisation non supportée par votre navigateur", true);
                 return;
             }
 
-            navigator.geolocation.getCurrentPosition((position) => {
-                const { latitude, longitude } = position.coords;
-                const now = new Date();
+            showStatus("Obtention de votre position...");
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const locationName = `Position actuelle (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+                    addLocationEntry(locationName, latitude, longitude);
+                },
+                (error) => {
+                    showStatus(`Erreur de géolocalisation: ${error.message}`, true);
+                }
+            );
+        });
 
-                // Revenir au format localisé
-                const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-
-                const entry = {
-                    locationName: `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`,
-                    latitude,
-                    longitude,
-                    datetime: formattedDate // Revenir au format précédent
-                };
-
-                // Ajouter l'entrée
-                trackingRef.push(entry);
-            });
-        }
+        // Boutons d'arrêts habituels
+        document.querySelectorAll('.quick-stop-btn').forEach(button => {
+            if (button.id !== 'use-geolocation') {
+                button.addEventListener('click', function() {
+                    const name = this.getAttribute('data-name');
+                    const lat = parseFloat(this.getAttribute('data-lat'));
+                    const lon = parseFloat(this.getAttribute('data-lon'));
+                    addLocationEntry(name, lat, lon);
+                });
+            }
+        });
 
         // Écoute des visites
         function listenForVisits() {
@@ -252,18 +351,24 @@
                     // Ne récupérer que les entrées du jour
                     const todayEntries = Object.values(data).filter(entry => isToday(entry.datetime));
                     
-                    // Trier par date
-                    todayEntries.sort((a, b) => parseDate(a.datetime) - parseDate(b.datetime));
+                    // Trier par date (plus récent en haut)
+                    todayEntries.sort((a, b) => parseDate(b.datetime) - parseDate(a.datetime));
 
                     // Afficher les entrées
-                    todayEntries.forEach(entry => {
+                    if (todayEntries.length === 0) {
                         const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${entry.locationName}</td>
-                            <td>${entry.datetime}</td>
-                        `;
+                        row.innerHTML = `<td colspan="2">Aucun enregistrement pour aujourd'hui</td>`;
                         tableBody.appendChild(row);
-                    });
+                    } else {
+                        todayEntries.forEach(entry => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${entry.locationName}</td>
+                                <td>${entry.datetime}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    }
                 }
             });
         }
