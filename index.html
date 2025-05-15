@@ -872,6 +872,9 @@
             }, 500);
         }
 
+        function loadTrackingData() {
+    trackingData.innerHTML = "<tr><td>Démo</td><td>" + new Date().toLocaleTimeString() + "</td></tr>";
+}
         function initializeApp() {
     console.log("✅ initializeApp exécutée !");
     fetchWeather();
