@@ -221,9 +221,23 @@
         }
 
         function isToday(dateString) {
-            const today = getTodayStart();
-            const entryDate = parseDate(dateString);
-            return entryDate >= today;
+            try {
+                const today = getTodayStart();
+                const entryDate = parseDate(dateString);
+                
+                // Vérifier si la date est valide
+                if (isNaN(entryDate.getTime())) {
+                    console.log(`Date invalide: ${dateString}`);
+                    return false;
+                }
+                
+                const isToday = entryDate >= today;
+                console.log(`Date: ${dateString}, Formattée: ${entryDate}, Est aujourd'hui: ${isToday}`);
+                return isToday;
+            } catch (error) {
+                console.error(`Erreur lors de la vérification de la date: ${dateString}`, error);
+                return false;
+            }
         }
 
         // Fonction pour afficher un message de statut
@@ -241,6 +255,7 @@
 
         // Fonction de nettoyage TOTALE
         function purgeOldData() {
+            console.log('Démarrage du nettoyage des données anciennes...');
             // Récupérer toutes les entrées et les filtrer
             trackingRef.once('value', (snapshot) => {
                 const data = snapshot.val();
@@ -249,8 +264,19 @@
                 // Filtrer uniquement les entrées du jour
                 if (data) {
                     Object.entries(data).forEach(([key, entry]) => {
+                        // Vérifier si l'entrée a une date valide
+                        if (!entry.datetime) {
+                            console.log('Entrée sans date trouvée:', key);
+                            return; // Ignorer les entrées sans date
+                        }
+                        
+                        // Afficher pour le débogage
+                        console.log(`Vérification entrée: ${entry.datetime}, Est aujourd'hui: ${isToday(entry.datetime)}`);
+                        
                         if (isToday(entry.datetime)) {
                             todayEntries[key] = entry;
+                        } else {
+                            console.log(`Entrée ancienne supprimée: ${entry.datetime}`);
                         }
                     });
                 }
@@ -259,6 +285,7 @@
                 trackingRef.set(todayEntries)
                     .then(() => {
                         console.log('✅ Données anciennes COMPLETEMENT supprimées');
+                        console.log(`Nombre d'entrées conservées: ${Object.keys(todayEntries).length}`);
                     })
                     .catch((error) => {
                         console.error('❌ Erreur de suppression:', error);
@@ -291,10 +318,25 @@
         // Nettoyer à chaque heure
         setInterval(purgeOldData, 60 * 60 * 1000);
 
-        // Nettoyer au chargement
+        // Forcer le nettoyage et l'affichage des données actuelles uniquement
         document.addEventListener('DOMContentLoaded', () => {
             purgeOldData();
             document.getElementById('destination-name').textContent = DESTINATION_NAME;
+            
+            // Ajouter un bouton pour forcer le nettoyage
+            const cleanButton = document.createElement('button');
+            cleanButton.textContent = "Nettoyer anciennes données";
+            cleanButton.className = "quick-stop-btn";
+            cleanButton.style.backgroundColor = "#e74c3c";
+            cleanButton.style.marginTop = "10px";
+            cleanButton.onclick = () => {
+                showStatus("Nettoyage des anciennes données...");
+                purgeOldData();
+                setTimeout(() => {
+                    showStatus("Nettoyage terminé !");
+                }, 1000);
+            };
+            document.getElementById('quick-stops-buttons').parentNode.appendChild(cleanButton);
         });
 
         // Gestion de l'authentification PIN
@@ -348,8 +390,17 @@
                 tableBody.innerHTML = "";
 
                 if (data) {
+                    // Afficher le nombre total d'entrées pour le débogage
+                    console.log(`Nombre total d'entrées dans Firebase: ${Object.keys(data).length}`);
+                    
                     // Ne récupérer que les entrées du jour
-                    const todayEntries = Object.values(data).filter(entry => isToday(entry.datetime));
+                    const todayEntries = Object.values(data).filter(entry => {
+                        const result = entry.datetime && isToday(entry.datetime);
+                        console.log(`Entrée: ${entry.datetime}, Incluse: ${result}`);
+                        return result;
+                    });
+                    
+                    console.log(`Nombre d'entrées aujourd'hui: ${todayEntries.length}`);
                     
                     // Trier par date (plus récent en haut)
                     todayEntries.sort((a, b) => parseDate(b.datetime) - parseDate(a.datetime));
