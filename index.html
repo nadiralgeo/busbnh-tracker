@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <title>NeoTrack - Smart Bus Monitoring</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -752,7 +753,7 @@
             
             // Simulate weather data (in a real app, you would fetch from a real API)
             setTimeout(() => {
-                // Today's simulated weather for Alger
+                // Today's simulated weather for Alger (May 15, 2025)
                 const weather = {
                     temp: 24,
                     feels_like: 26,
@@ -786,4 +787,9 @@
                         </div>
                         <div class="weather-detail">
                             <div><i class="fas fa-tint"></i> Humidité</div>
-                            <div class="weather-detail-value
+                            <div class="weather-detail-value">${weather.humidity}%</div>
+                        </div>
+                    </div>
+                `;
+            }, 500);
+        }
