@@ -564,7 +564,7 @@
 
         // Configuration Firebase
         const firebaseConfig = {
-            apiKey: "API_KEY",
+            apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
             authDomain: "bustrack-cb124.firebaseapp.com",
             databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
             projectId: "bustrack-cb124",
@@ -625,13 +625,13 @@
             }
         });
 
-      pinInput.addEventListener('keydown', function(e) {
-    // Submit on Enter key
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        validatePin();
-    }
-});
+        pinInput.addEventListener('keypress', function(e) {
+            // Submit on Enter key
+            if (e.key === 'Enter') {
+                validatePin();
+            }
+        });
+
         // Fonctions utilitaires pour la gestion des dates
         function parseDate(dateString) {
             // Essayer de parser différents formats de date
@@ -651,7 +651,17 @@
             
             return parsedDate;
         }
+function initializeApp() {
+    fetchWeather(); // Affiche la météo
+    loadTrackingData(); // à implémenter si elle existe
+    destinationName.textContent = DESTINATION_NAME;
+}
+        function loadTrackingData() {
+    trackingData.innerHTML = "<tr><td>Test</td><td>Heure actuelle</td></tr>";
+}
 
+
+        
         function formatDate(date) {
             return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
         }
@@ -794,91 +804,6 @@
             });
         }
 
-
-        function initializeApp() {
-    // Définir le nom de la destination
-    destinationName.textContent = DESTINATION_NAME;
-    
-    // Charger les données de tracking
-    loadTrackingData();
-    
-    // Initialiser la carte
-    initMap();
-    
-    // Charger la météo
-    fetchWeather();
-            
-}
-// Modification 4 : Assurez-vous que cette fonction existe pour charger les données
-function loadTrackingData() {
-    trackingData.innerHTML = '<tr><td colspan="2" class="loading">Loading tracking history...</td></tr>';
-    
-    trackingRef.orderByChild('datetime').once('value')
-        .then((snapshot) => {
-            const data = snapshot.val();
-            if (!data) {
-                trackingData.innerHTML = '<tr><td colspan="2" class="loading">No tracking data available</td></tr>';
-                return;
-            }
-            
-            trackingData.innerHTML = '';
-            
-            // Convertir en tableau pour trier
-            const entries = Object.entries(data).map(([key, value]) => ({ key, ...value }));
-            
-            // Trier par date (plus récente en premier)
-            entries.sort((a, b) => {
-                const dateA = parseDate(a.datetime);
-                const dateB = parseDate(b.datetime);
-                return dateB - dateA;
-            });
-            
-            // N'afficher que les entrées d'aujourd'hui
-            const todayEntries = entries.filter(entry => isToday(entry.datetime));
-            
-            if (todayEntries.length === 0) {
-                trackingData.innerHTML = '<tr><td colspan="2" class="loading">No tracking data for today</td></tr>';
-                return;
-            }
-            
-            todayEntries.forEach(entry => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${entry.locationName}</td>
-                    <td>${entry.datetime}</td>
-                `;
-                trackingData.appendChild(row);
-            });
-        })
-        .catch((error) => {
-            console.error("Error loading tracking data:", error);
-            trackingData.innerHTML = `<tr><td colspan="2" class="loading">Error loading data: ${error.message}</td></tr>`;
-        });
-}
-
-
-        // Modification 5 : Ajoutez cette fonction si elle n'existe pas
-function updateMapMarker(lat, lng, name) {
-    if (map && marker) {
-        marker.setLatLng([lat, lng]);
-        marker.bindPopup(`<b>${name}</b>`).openPopup();
-        map.setView([lat, lng], 15);
-    }
-}
-
-        
-        function initMap() {
-    map = L.map('map-container').setView([36.7538, 3.0588], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    
-    // Ajouter le marqueur initial sur la destination par défaut
-    marker = L.marker([DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude]).addTo(map);
-    marker.bindPopup(`<b>${DESTINATION_NAME}</b>`).openPopup();
-}
-
-        
         // Fonction pour ajouter une entrée de position
         function addLocationEntry(locationName, latitude, longitude) {
             const now = new Date();
