@@ -690,11 +690,33 @@ if (cleanDataBtn) cleanDataBtn.addEventListener('click', function() {
                         const lat = position.coords.latitude;
                         const lon = position.coords.longitude;
                         
-                        // Update map
-                        updateMapMarker(lat, lon, "Ma position actuelle");
-                        
-                        // Add entry to Firebase
-                        addLocationEntry("Ma position actuelle", lat, lon);
+// Utiliser l'API Nominatim pour obtenir un nom de lieu
+fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+    .then(response => response.json())
+    .then(data => {
+        let locationLabel = "Ma position actuelle";
+        if (data && data.address) {
+            if (data.address.city) {
+                locationLabel = data.address.city;
+            } else if (data.address.town) {
+                locationLabel = data.address.town;
+            } else if (data.address.village) {
+                locationLabel = data.address.village;
+            } else if (data.display_name) {
+                locationLabel = "Près de " + data.display_name.split(",")[0];
+            }
+        }
+        // Mettre à jour la carte avec le nom trouvé
+        updateMapMarker(lat, lon, locationLabel);
+        // Ajouter l'entrée dans Firebase
+        addLocationEntry(locationLabel, lat, lon);
+    })
+    .catch(() => {
+        // En cas d'échec, fallback sur "Près de [lat],[lon]"
+        const fallback = `Près de ${lat.toFixed(5)},${lon.toFixed(5)}`;
+        updateMapMarker(lat, lon, fallback);
+        addLocationEntry(fallback, lat, lon);
+    });
                     },
                     error => {
                         showStatus(`Erreur de géolocalisation: ${error.message}`, true);
