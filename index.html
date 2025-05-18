@@ -526,7 +526,23 @@
         const quickStopButtons = document.querySelectorAll('.quick-stop-btn');
         const useGeolocationBtn = document.getElementById('use-geolocation');
         const cleanDataBtn = document.getElementById('clean-data');
-
+// Ajouter un event listener pour chaque bouton d'arrêt habituel
+document.querySelectorAll('.quick-stop-btn').forEach(btn => {
+    // Ne pas prendre les boutons spéciaux (géoloc & nettoyage)
+    if (!btn.hasAttribute('data-name')) return;
+    btn.addEventListener('click', function() {
+        const name = btn.getAttribute('data-name');
+        const lat = parseFloat(btn.getAttribute('data-lat'));
+        const lon = parseFloat(btn.getAttribute('data-lon'));
+        addLocationEntry(name, lat, lon);
+    });
+});
+// Géolocalisation
+if (useGeolocationBtn) useGeolocationBtn.addEventListener('click', useGeolocation);
+// Nettoyage
+if (cleanDataBtn) cleanDataBtn.addEventListener('click', function() {
+    if (confirm('Nettoyer toutes les anciennes données ?')) purgeOldData();
+});
         // Initialize map
         let map;
         let marker;
@@ -922,8 +938,29 @@
             }, 500);
         }
 
-        function loadTrackingData() {
-    trackingData.innerHTML = "<tr><td>Démo</td><td>" + new Date().toLocaleTimeString() + "</td></tr>";
+function loadTrackingData() {
+    trackingData.innerHTML = `<tr><td colspan="2" class="loading">Chargement...</td></tr>`;
+    trackingRef.orderByChild('datetime').limitToLast(20).once('value')
+        .then(snapshot => {
+            const data = snapshot.val();
+            if (!data) {
+                trackingData.innerHTML = `<tr><td colspan="2">Aucune donnée historique</td></tr>`;
+                return;
+            }
+            // Trier par date descendante
+            const entries = Object.values(data).sort((a, b) => {
+                return new Date(b.datetime) - new Date(a.datetime);
+            });
+            trackingData.innerHTML = entries.map(entry => `
+                <tr>
+                    <td>${entry.locationName || '-'}</td>
+                    <td>${entry.datetime || '-'}</td>
+                </tr>
+            `).join('');
+        })
+        .catch(error => {
+            trackingData.innerHTML = `<tr><td colspan="2" class="error">Erreur chargement: ${error.message}</td></tr>`;
+        });
 }
         function initializeApp() {
     console.log("✅ initializeApp exécutée !");
