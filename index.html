@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-    <title>NeoTrack - Smart Bus Monitoring</title>
+    <title>NeoTrack - Bus Tracking System</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -13,9 +11,13 @@
             --primary-light: #1e293b;
             --accent-color: #06b6d4;
             --accent-glow: #0891b2;
+            --driver-color: #f59e0b;
+            --passenger-color: #10b981;
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --gradient-primary: linear-gradient(135deg, #0891b2, #0ea5e9);
+            --gradient-driver: linear-gradient(135deg, #f59e0b, #d97706);
+            --gradient-passenger: linear-gradient(135deg, #10b981, #059669);
             --shadow-neon: 0 0 15px rgba(6, 182, 212, 0.5);
             --border-radius: 16px;
             --card-bg: rgba(30, 41, 59, 0.7);
@@ -125,6 +127,25 @@
             box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3);
         }
 
+        .user-type-indicator {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .driver-mode {
+            background: var(--gradient-driver);
+            color: white;
+        }
+
+        .passenger-mode {
+            background: var(--gradient-passenger);
+            color: white;
+        }
+
         .dashboard {
             display: grid;
             grid-template-columns: 1fr;
@@ -159,69 +180,58 @@
             font-size: 20px;
         }
 
-        .destination-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
-        .destination-badge {
-            background: var(--gradient-primary);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 18px;
-            margin-top: 10px;
-            box-shadow: var(--shadow-neon);
-        }
-
-        .quick-stops {
+        .bus-stops {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
             margin-top: 15px;
         }
 
-        .quick-stop-btn {
+        .bus-stop-btn {
             background: rgba(15, 23, 42, 0.6);
             color: var(--text-primary);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
-            padding: 12px 10px;
+            padding: 15px 12px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
             text-align: center;
             transition: all 0.3s;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            min-height: 80px;
         }
 
-        .quick-stop-btn:hover {
+        .bus-stop-btn:hover {
             background: rgba(6, 182, 212, 0.2);
             border-color: var(--accent-color);
             box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
             transform: translateY(-2px);
         }
 
-        button#use-geolocation {
-            background: var(--gradient-primary);
-            color: white;
-            border: none;
-            grid-column: span 2;
-            font-weight: 600;
+        .bus-stop-btn:active {
+            transform: translateY(0);
+            background: rgba(6, 182, 212, 0.3);
         }
 
-        button#clean-data {
-            background: linear-gradient(135deg, #f43f5e, #e11d48);
-            color: white;
-            border: none;
-            grid-column: span 2;
-            font-weight: 600;
-            margin-top: 12px;
+        .bus-stop-btn i {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--accent-color);
+        }
+
+        .current-location {
+            background: var(--gradient-driver) !important;
+            color: white !important;
+            border-color: var(--driver-color) !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4) !important;
+        }
+
+        .current-location i {
+            color: white !important;
         }
 
         table {
@@ -252,6 +262,11 @@
 
         tbody tr:hover {
             background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .current-row {
+            background-color: rgba(245, 158, 11, 0.2) !important;
+            border-left: 4px solid var(--driver-color);
         }
 
         .loading {
@@ -287,7 +302,6 @@
             border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
-        /* Weather widget styles */
         .weather-widget {
             display: flex;
             align-items: center;
@@ -336,15 +350,6 @@
             margin-top: 5px;
         }
 
-        /* Map container */
-        .map-container {
-            height: 400px;
-            width: 100%;
-            border-radius: var(--border-radius);
-            overflow: hidden;
-        }
-        
-        /* Loading spinner */
         .spinner {
             width: 40px;
             height: 40px;
@@ -360,7 +365,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Pin error message */
         .pin-error {
             color: #ef4444;
             font-size: 14px;
@@ -368,7 +372,6 @@
             display: none;
         }
 
-        /* Pin shake animation */
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
@@ -378,26 +381,79 @@
         .shake {
             animation: shake 0.5s;
         }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .bus-line-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .bus-line-badge {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 16px;
+            display: inline-block;
+        }
+
+        .last-update {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .clean-data-btn {
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 15px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .clean-data-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 63, 94, 0.3);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1><i class="fas fa-shuttle-van"></i> NeoTrack</h1>
+        <h1><i class="fas fa-bus"></i> NeoTrack Bus</h1>
         
         <div class="pin-input glass-card">
-            <label for="pin"><i class="fas fa-lock"></i> Enter Access PIN</label>
+            <label for="pin"><i class="fas fa-lock"></i> Code d'accès</label>
             <input type="password" id="pin" placeholder="• • • •" maxlength="4" />
-            <div id="pin-error" class="pin-error">Code PIN incorrect. Veuillez réessayer.</div>
+            <div id="pin-error" class="pin-error">Code incorrect. Veuillez réessayer.</div>
+            <div class="last-update">
+                Chauffeur: 1579 | Passagers: 2024
+            </div>
         </div>
         
-        <div id="content" style="display: none;">
-            <div id="status-message" class="status" style="display: none;"></div>
+        <div id="content" class="hidden">
+            <div id="user-type-indicator" class="user-type-indicator"></div>
+            <div id="status-message" class="status hidden"></div>
+            
+            <div class="bus-line-info">
+                <div class="bus-line-badge" id="bus-line-display">Ligne 4742</div>
+            </div>
             
             <div class="dashboard">
                 <!-- Weather Widget -->
                 <div class="glass-card">
                     <div class="card-header">
-                        <h3>Alger Weather</h3>
+                        <h3>Météo Alger</h3>
                         <i class="fas fa-cloud-sun"></i>
                     </div>
                     <div id="weather-widget" class="weather-widget">
@@ -405,95 +461,114 @@
                     </div>
                 </div>
                 
-                <!-- Destination Info -->
-                <div class="glass-card">
+                <!-- Current Position (Driver Only) -->
+                <div id="current-position-card" class="glass-card hidden">
                     <div class="card-header">
-                        <h3>Destination</h3>
+                        <h3>Position Actuelle</h3>
                         <i class="fas fa-map-marker-alt"></i>
                     </div>
                     <div class="destination-info">
-                        <div>Your current destination is:</div>
-                        <div class="destination-badge" id="destination-name">LOADING...</div>
-                    </div>
-                </div>
-                
-                <!-- Quick Stops -->
-                <div class="glass-card full-width">
-                    <div class="card-header">
-                        <h3>Arrêts habituels</h3>
-                        <i class="fas fa-thumbtack"></i>
-                    </div>
-                    <div class="quick-stops" id="quick-stops-buttons">
-                        <button class="quick-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">
-                            <i class="fas fa-map-pin"></i> Zeralda
-                        </button>
-                        <button class="quick-stop-btn" data-name="SidiAbdallah1" data-lat="36.71623" data-lon="3.201724">
-                            <i class="fas fa-map-pin"></i> SidiAbdallah1
-                        </button>
-                        <button class="quick-stop-btn" data-name="sidiAbdallah2" data-lat="36.68229506332563" data-lon="2.854013786507855">
-                            <i class="fas fa-map-pin"></i> sidiAbdallah2
-                        </button>
-                        <button class="quick-stop-btn" data-name="sidiAbdallah3" data-lat="36.71000" data-lon="3.19800">
-                            <i class="fas fa-map-pin"></i> sidiAbdallah3
-                        </button>
-                        <button class="quick-stop-btn" data-name="Rahmania" data-lat="36.72500" data-lon="3.20500">
-                            <i class="fas fa-map-pin"></i> Rahmania
-                        </button>
-                        <button class="quick-stop-btn" data-name="Douera" data-lat="36.684369262072416" data-lon="2.950529435751952">
-                            <i class="fas fa-map-pin"></i> Douera
-                        </button>
-                        <button class="quick-stop-btn" data-name="BirTouta" data-lat="36.71000" data-lon="3.19800">
-                            <i class="fas fa-map-pin"></i> BirTouta
-                        </button>
-                        <button id="use-geolocation" class="quick-stop-btn">
-                            <i class="fas fa-location-arrow"></i> Utiliser ma position
-                        </button>
-                        <button id="clean-data" class="quick-stop-btn">
-                            <i class="fas fa-broom"></i> Nettoyer anciennes données
-                        </button>
+                        <div>Bus actuellement à:</div>
+                        <div class="destination-badge" id="current-position-name">Aucune position</div>
                     </div>
                 </div>
 
-                <!-- History Table -->
+                <!-- Last Position (Passengers Only) -->
+                <div id="last-position-card" class="glass-card hidden">
+                    <div class="card-header">
+                        <h3>Dernière Position</h3>
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="destination-info">
+                        <div>Dernière position connue:</div>
+                        <div class="destination-badge" id="last-position-name">Chargement...</div>
+                        <div id="last-position-time" class="last-update"></div>
+                    </div>
+                </div>
+                
+                <!-- Bus Stops (Driver Only) -->
+                <div id="bus-stops-card" class="glass-card full-width hidden">
+                    <div class="card-header">
+                        <h3>Arrêts de Bus</h3>
+                        <i class="fas fa-map-signs"></i>
+                    </div>
+                    <div class="bus-stops" id="bus-stops-buttons">
+                        <button class="bus-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Zeralda</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Sidi Abdallah 1" data-lat="36.71623" data-lon="3.201724">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Sidi Abdallah 1</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Sidi Abdallah 2" data-lat="36.68229506332563" data-lon="2.854013786507855">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Sidi Abdallah 2</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Sidi Abdallah 3" data-lat="36.71000" data-lon="3.19800">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Sidi Abdallah 3</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Rahmania" data-lat="36.72500" data-lon="3.20500">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Rahmania</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Douera" data-lat="36.684369262072416" data-lon="2.950529435751952">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Douera</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Bir Touta" data-lat="36.71000" data-lon="3.19800">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Bir Touta</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Centre Ville" data-lat="36.7538" data-lon="3.0588">
+                            <i class="fas fa-building"></i>
+                            <span>Centre Ville</span>
+                        </button>
+                        <button class="bus-stop-btn" data-name="Université" data-lat="36.7050" data-lon="3.1500">
+                            <i class="fas fa-university"></i>
+                            <span>Université</span>
+                        </button>
+                    </div>
+                    <button id="clean-data" class="clean-data-btn">
+                        <i class="fas fa-broom"></i> Nettoyer les anciennes données
+                    </button>
+                </div>
+
+                <!-- Position History -->
                 <div class="glass-card full-width">
                     <div class="card-header">
-                        <h3>Bus Tracking History</h3>
+                        <h3>Historique des Positions</h3>
                         <i class="fas fa-history"></i>
                     </div>
                     <table id="tracking-table">
                         <thead>
                             <tr>
-                                <th>Location</th>
-                                <th>Time</th>
+                                <th>Arrêt</th>
+                                <th>Heure</th>
                             </tr>
                         </thead>
                         <tbody id="tracking-data">
                             <tr>
-                                <td colspan="2" class="loading">Loading tracking history...</td>
+                                <td colspan="2" class="loading">Chargement de l'historique...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 
-                <!-- Traffic Map -->
+                <!-- Traffic Info -->
                 <div class="glass-card full-width">
                     <div class="card-header">
-                        <h3>Alger Traffic Map</h3>
-                        <i class="fas fa-traffic-light"></i>
+                        <h3>Info Trafic Alger</h3>
+                        <i class="fab fa-facebook"></i>
                     </div>
-                    <div class="glass-card full-width">
-    <div class="card-header">
-        <h3>Trafic Alger (posts Facebook Info Trafic Algérie)</h3>
-        <i class="fab fa-facebook"></i>
-    </div>
-    <div id="facebook-traffic" style="width:100%; min-height: 500px;">
-        <iframe
-            src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FInfotraficalgerie1&tabs=timeline&width=500&height=500&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
-            width="100%" height="500" style="border:none;overflow:hidden" scrolling="no" frameborder="0"
-            allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">
-        </iframe>
-    </div>
-</div>
+                    <div id="facebook-traffic" style="width:100%; min-height: 500px;">
+                        <iframe
+                            src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FInfotraficalgerie1&tabs=timeline&width=500&height=500&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
+                            width="100%" height="500" style="border:none;overflow:hidden" scrolling="no" frameborder="0"
+                            allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">
+                        </iframe>
+                    </div>
                 </div>
             </div>
         </div>
@@ -505,12 +580,12 @@
    
     <script>
         // Configuration constante
-        const ACCESS_PIN = "1579";
-        const BUS_LINE = "Line 4742";
-        const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
-        const DESTINATION_NAME = "TRAVAIL";
-        const DEFAULT_LAT = 36.7538;  // Alger center
-        const DEFAULT_LON = 3.0588;   // Alger center
+        const DRIVER_PIN = "1579";      // Code chauffeur
+        const PASSENGER_PIN = "2024";   // Code passagers
+        const BUS_LINE = "Line4742";
+        
+        let currentUserType = null; // 'driver' ou 'passenger'
+        let currentBusPosition = null;
 
         // Configuration Firebase
         const firebaseConfig = {
@@ -532,42 +607,62 @@
         const pinInput = document.getElementById('pin');
         const pinError = document.getElementById('pin-error');
         const contentDiv = document.getElementById('content');
-        const destinationName = document.getElementById('destination-name');
+        const userTypeIndicator = document.getElementById('user-type-indicator');
         const trackingData = document.getElementById('tracking-data');
-        const mapContainer = document.getElementById('map-container');
-        const quickStopButtons = document.querySelectorAll('.quick-stop-btn');
-        const useGeolocationBtn = document.getElementById('use-geolocation');
+        const currentPositionCard = document.getElementById('current-position-card');
+        const lastPositionCard = document.getElementById('last-position-card');
+        const busStopsCard = document.getElementById('bus-stops-card');
+        const currentPositionName = document.getElementById('current-position-name');
+        const lastPositionName = document.getElementById('last-position-name');
+        const lastPositionTime = document.getElementById('last-position-time');
         const cleanDataBtn = document.getElementById('clean-data');
-// Ajouter un event listener pour chaque bouton d'arrêt habituel
-document.querySelectorAll('.quick-stop-btn').forEach(btn => {
-    // Ne pas prendre les boutons spéciaux (géoloc & nettoyage)
-    if (!btn.hasAttribute('data-name')) return;
-    btn.addEventListener('click', function() {
-        const name = btn.getAttribute('data-name');
-        const lat = parseFloat(btn.getAttribute('data-lat'));
-        const lon = parseFloat(btn.getAttribute('data-lon'));
-        addLocationEntry(name, lat, lon);
-    });
-});
-// Géolocalisation
-if (useGeolocationBtn) useGeolocationBtn.addEventListener('click', useGeolocation);
-// Nettoyage
-if (cleanDataBtn) cleanDataBtn.addEventListener('click', function() {
-    if (confirm('Nettoyer toutes les anciennes données ?')) purgeOldData();
-});
-        // Initialize map
-        let map;
-        let marker;
-        let currentPosition = null;
 
-        // Pin validation
-        function validatePin() {
-            if (pinInput.value === ACCESS_PIN) {
-                pinInput.parentElement.style.display = 'none';
-                contentDiv.style.display = 'block';
+        // Fonctions utilitaires pour la gestion des dates
+        function formatDate(date) {
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        }
+
+        function parseDate(dateString) {
+            let parsedDate;
+            parsedDate = new Date(dateString);
+            
+            if (isNaN(parsedDate.getTime())) {
+                const [datePart, timePart] = dateString.split(' ');
+                const [day, month, year] = datePart.split('/');
+                const [hours, minutes, seconds] = timePart.split(':');
+                parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+            
+            return parsedDate;
+        }
+
+        function isToday(dateString) {
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const entryDate = parseDate(dateString);
                 
-                // Initialize content
-                initializeApp();
+                if (isNaN(entryDate.getTime())) {
+                    return false;
+                }
+                
+                return entryDate >= today;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // Validation PIN
+        function validatePin() {
+            const pin = pinInput.value;
+            
+            if (pin === DRIVER_PIN) {
+                currentUserType = 'driver';
+                initializeDriverMode();
+                return true;
+            } else if (pin === PASSENGER_PIN) {
+                currentUserType = 'passenger';
+                initializePassengerMode();
                 return true;
             } else {
                 pinInput.classList.add('shake');
@@ -579,397 +674,127 @@ if (cleanDataBtn) cleanDataBtn.addEventListener('click', function() {
             }
         }
 
-        // Add event listeners for PIN input
+        // Initialisation mode chauffeur
+        function initializeDriverMode() {
+            pinInput.parentElement.classList.add('hidden');
+            contentDiv.classList.remove('hidden');
+            
+            userTypeIndicator.textContent = "🚌 Mode Chauffeur";
+            userTypeIndicator.className = "user-type-indicator driver-mode";
+            
+            currentPositionCard.classList.remove('hidden');
+            busStopsCard.classList.remove('hidden');
+            lastPositionCard.classList.add('hidden');
+            
+            initializeApp();
+            setupDriverControls();
+        }
+
+        // Initialisation mode passager
+        function initializePassengerMode() {
+            pinInput.parentElement.classList.add('hidden');
+            contentDiv.classList.remove('hidden');
+            
+            userTypeIndicator.textContent = "👥 Mode Passager - Consultation";
+            userTypeIndicator.className = "user-type-indicator passenger-mode";
+            
+            currentPositionCard.classList.add('hidden');
+            busStopsCard.classList.add('hidden');
+            lastPositionCard.classList.remove('hidden');
+            
+            initializeApp();
+            startAutoRefresh();
+        }
+
+        // Configuration des contrôles chauffeur
+        function setupDriverControls() {
+            // Ajouter les event listeners pour les boutons d'arrêt
+            document.querySelectorAll('.bus-stop-btn').forEach(btn => {
+                if (!btn.hasAttribute('data-name')) return;
+                
+                btn.addEventListener('click', function() {
+                    const name = btn.getAttribute('data-name');
+                    const lat = parseFloat(btn.getAttribute('data-lat'));
+                    const lon = parseFloat(btn.getAttribute('data-lon'));
+                    
+                    // Mettre à jour l'interface avant d'enregistrer
+                    updateCurrentPosition(name);
+                    addLocationEntry(name, lat, lon);
+                });
+            });
+
+            // Bouton de nettoyage
+            if (cleanDataBtn) {
+                cleanDataBtn.addEventListener('click', function() {
+                    if (confirm('Voulez-vous nettoyer toutes les anciennes données ?')) {
+                        purgeOldData();
+                    }
+                });
+            }
+        }
+
+        // Mettre à jour la position actuelle
+        function updateCurrentPosition(stopName) {
+            currentBusPosition = stopName;
+            currentPositionName.textContent = stopName;
+            
+            // Mettre à jour les boutons visuellement
+            document.querySelectorAll('.bus-stop-btn').forEach(btn => {
+                btn.classList.remove('current-location');
+                if (btn.getAttribute('data-name') === stopName) {
+                    btn.classList.add('current-location');
+                }
+            });
+        }
+
+        // Rafraîchissement automatique pour les passagers
+        function startAutoRefresh() {
+            // Rafraîchir toutes les 30 secondes
+            setInterval(() => {
+                loadTrackingData();
+                updateLastPosition();
+            }, 30000);
+        }
+
+        // Mettre à jour la dernière position (pour les passagers)
+        function updateLastPosition() {
+            trackingRef.orderByChild('datetime').limitToLast(1).once('value')
+                .then(snapshot => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const lastEntry = Object.values(data)[0];
+                        lastPositionName.textContent = lastEntry.locationName || 'Position inconnue';
+                        lastPositionTime.textContent = `Mis à jour: ${lastEntry.datetime || 'Heure inconnue'}`;
+                    } else {
+                        lastPositionName.textContent = 'Aucune position';
+                        lastPositionTime.textContent = '';
+                    }
+                })
+                .catch(error => {
+                    lastPositionName.textContent = 'Erreur de chargement';
+                    lastPositionTime.textContent = '';
+                });
+        }
+
+        // Event listeners pour PIN
         pinInput.addEventListener('input', function() {
-            // Auto-submit when 4 digits are entered
             if (this.value.length === 4) {
                 validatePin();
             }
             
-            // Hide error message when typing
             if (pinError.style.display === 'block') {
                 pinError.style.display = 'none';
             }
         });
 
         pinInput.addEventListener('keypress', function(e) {
-            // Submit on Enter key
             if (e.key === 'Enter') {
                 validatePin();
             }
         });
 
-        // Fonctions utilitaires pour la gestion des dates
-        function parseDate(dateString) {
-            // Essayer de parser différents formats de date
-            let parsedDate;
-            
-            // Essayer le format ISO
-            parsedDate = new Date(dateString);
-            
-            // Si ça ne marche pas, essayer le format localisé
-            if (isNaN(parsedDate.getTime())) {
-                // Format localisé comme "07/05/2025 11:03:29"
-                const [datePart, timePart] = dateString.split(' ');
-                const [day, month, year] = datePart.split('/');
-                const [hours, minutes, seconds] = timePart.split(':');
-                parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
-            }
-            
-            return parsedDate;
-        }
-       
-        function formatDate(date) {
-            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-        }
-
-        function getTodayStart() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return today;
-        }
-
-        function isToday(dateString) {
-            try {
-                const today = getTodayStart();
-                const entryDate = parseDate(dateString);
-                
-                // Vérifier si la date est valide
-                if (isNaN(entryDate.getTime())) {
-                    console.log(`Date invalide: ${dateString}`);
-                    return false;
-                }
-                
-                const isToday = entryDate >= today;
-                console.log(`Date: ${dateString}, Formattée: ${entryDate}, Est aujourd'hui: ${isToday}`);
-                return isToday;
-            } catch (error) {
-                console.error(`Erreur lors de la vérification de la date: ${dateString}`, error);
-                return false;
-            }
-        }
-
         // Fonction pour afficher un message de statut
         function showStatus(message, isError = false) {
             const statusElement = document.getElementById('status-message');
             statusElement.textContent = message;
-            statusElement.className = 'status ' + (isError ? 'error' : 'success');
-            statusElement.style.display = 'block';
-            
-            // Masquer après 3 secondes
-            setTimeout(() => {
-                statusElement.style.display = 'none';
-            }, 3000);
-        }
-
-       
-        
-        // Function to update map marker
-        function updateMapMarker(lat, lon, locationName) {
-            if (map && marker) {
-                // Update marker position
-                marker.setLatLng([lat, lon])
-                    .bindPopup(locationName)
-                    .openPopup();
-                
-                // Update map view to center on marker
-                map.setView([lat, lon], 14);
-                
-                // Store current position
-                currentPosition = {lat, lon, name: locationName};
-            }
-        }
-
-        // Function to handle geolocation
-        function useGeolocation() {
-            if ("geolocation" in navigator) {
-                showStatus("Récupération de votre position...");
-                
-                navigator.geolocation.getCurrentPosition(
-                    position => {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
-                        
-// Utiliser l'API Nominatim pour obtenir un nom de lieu
-fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
-    .then(response => response.json())
-    .then(data => {
-        let locationLabel = "Ma position actuelle";
-        if (data && data.address) {
-            if (data.address.city) {
-                locationLabel = data.address.city;
-            } else if (data.address.town) {
-                locationLabel = data.address.town;
-            } else if (data.address.village) {
-                locationLabel = data.address.village;
-            } else if (data.display_name) {
-                locationLabel = "Près de " + data.display_name.split(",")[0];
-            }
-        }
-        // Mettre à jour la carte avec le nom trouvé
-        updateMapMarker(lat, lon, locationLabel);
-        // Ajouter l'entrée dans Firebase
-        addLocationEntry(locationLabel, lat, lon);
-    })
-    .catch(() => {
-        // En cas d'échec, fallback sur "Près de [lat],[lon]"
-        const fallback = `Près de ${lat.toFixed(5)},${lon.toFixed(5)}`;
-        updateMapMarker(lat, lon, fallback);
-        addLocationEntry(fallback, lat, lon);
-    });
-                    },
-                    error => {
-                        showStatus(`Erreur de géolocalisation: ${error.message}`, true);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                showStatus("La géolocalisation n'est pas supportée par votre navigateur", true);
-            }
-        }
-
-        // Fonction pour ajouter une entrée de position
-        function addLocationEntry(locationName, latitude, longitude) {
-            const now = new Date();
-            const formattedDate = formatDate(now);
-
-            const entry = {
-                locationName: locationName,
-                latitude: latitude,
-                longitude: longitude,
-                datetime: formattedDate
-            };
-
-            // Ajouter l'entrée
-            trackingRef.push(entry)
-                .then(() => {
-                    showStatus(`Position '${locationName}' enregistrée avec succès`);
-                    
-                    // Update map if it exists
-                    updateMapMarker(latitude, longitude, locationName);
-                    
-                    // Refresh tracking data
-                    loadTrackingData();
-                })
-                .catch((error) => {
-                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
-                });
-        }
-
-        // Fonction de nettoyage TOTALE
-        function purgeOldData() {
-            showStatus('Nettoyage des données en cours...');
-            
-            return new Promise((resolve, reject) => {
-                console.log('Démarrage du nettoyage approfondi des données anciennes');
-                
-                // Obtenir la date d'aujourd'hui à minuit
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const todayString = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
-                
-                console.log(`Date de référence pour aujourd'hui: ${todayString}`);
-                
-                // Récupérer toutes les entrées
-                trackingRef.once('value')
-                    .then((snapshot) => {
-                        const data = snapshot.val();
-                        if (!data) {
-                            console.log('Aucune donnée trouvée dans la base');
-                            showStatus('Aucune donnée à nettoyer');
-                            resolve();
-                            return;
-                        }
-                        
-                        console.log(`Total de ${Object.keys(data).length} entrées trouvées`);
-                        
-                        // Créer un nouvel objet avec seulement les entrées d'aujourd'hui
-                        const todayEntries = {};
-                        const keysToRemove = [];
-                        
-                        Object.entries(data).forEach(([key, entry]) => {
-                            try {
-                                if (!entry.datetime) {
-                                    console.log(`Entrée sans date (clé: ${key}) - À supprimer`);
-                                    keysToRemove.push(key);
-                                    return;
-                                }
-                                
-                                // Convertir la date de l'entrée
-                                let entryDate;
-                                
-                                if (entry.datetime.includes('/')) {
-                                    // Format DD/MM/YYYY HH:MM:SS
-                                    const [datePart] = entry.datetime.split(' ');
-                                    const [day, month, year] = datePart.split('/');
-                                    entryDate = new Date(year, month - 1, day);
-                                } else {
-                                    // Format ISO ou autre
-                                    entryDate = new Date(entry.datetime);
-                                }
-                                
-                                // Vérifier si la date est valide
-                                if (isNaN(entryDate.getTime())) {
-                                    console.log(`Date invalide dans l'entrée (clé: ${key}): ${entry.datetime} - À supprimer`);
-                                    keysToRemove.push(key);
-                                    return;
-                                }
-                                
-                                // Convertir en format YYYY-MM-DD pour comparaison
-                                const entryDateString = entryDate.toISOString().split('T')[0];
-                                console.log(`Entrée (clé: ${key}): ${entry.datetime} => ${entryDateString}`);
-                                
-                                if (entryDateString === todayString) {
-                                    console.log(`Entrée conservée (clé: ${key}): ${entry.datetime}`);
-                                    todayEntries[key] = entry;
-                                } else {
-                                    console.log(`Entrée ancienne (clé: ${key}): ${entry.datetime} - À supprimer`);
-                                    keysToRemove.push(key);
-                                }
-                            } catch (error) {
-                                console.error(`Erreur lors du traitement de l'entrée (clé: ${key}):`, error);
-                                keysToRemove.push(key);
-                            }
-                        });
-                        
-                        console.log(`${Object.keys(todayEntries).length} entrées à conserver, ${keysToRemove.length} entrées à supprimer`);
-                        
-                        // Supprimer toutes les anciennes entrées une par une
-                        const removePromises = keysToRemove.map(key => {
-                            return trackingRef.child(key).remove()
-                                .then(() => console.log(`Entrée supprimée avec succès: ${key}`))
-                                .catch(error => console.error(`Erreur lors de la suppression de l'entrée ${key}:`, error));
-                        });
-                        
-                        return Promise.all(removePromises);
-                    })
-                    .then(() => {
-                        console.log('Nettoyage terminé avec succès');
-                        showStatus('Nettoyage des données terminé avec succès');
-                        loadTrackingData(); // Recharger les données
-                        resolve();
-                    })
-                    .catch(error => {
-                        console.error('Erreur lors du nettoyage:', error);
-                        showStatus('Erreur lors du nettoyage des données', true);
-                        reject(error);
-                    
-                    });
-            });
-        }
-
-        // Fonction pour ajouter une entrée de position
-        function addLocationEntry(locationName, latitude, longitude) {
-            const now = new Date();
-            const formattedDate = formatDate(now);
-
-            const entry = {
-                locationName: locationName,
-                latitude: latitude,
-                longitude: longitude,
-                datetime: formattedDate
-            };
-
-            // Ajouter l'entrée
-            trackingRef.push(entry)
-                .then(() => {
-                    showStatus(`Position '${locationName}' enregistrée avec succès`);
-                    
-                    // Update map if it exists
-                    if (window.map && typeof window.updateMapMarker === 'function') {
-                        updateMapMarker(latitude, longitude, locationName);
-                    }
-                })
-                .catch((error) => {
-                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
-                });
-        }
-
-        // Fonction pour récupérer et afficher la météo d'Alger
-        function fetchWeather() {
-            const weatherWidget = document.getElementById('weather-widget');
-            
-            // Alger coordinates
-            const lat = 36.7538;
-            const lon = 3.0588;
-            
-            // Simulate weather data (in a real app, you would fetch from a real API)
-            setTimeout(() => {
-                // Today's simulated weather for Alger (May 15, 2025)
-                const weather = {
-                    temp: 24,
-                    feels_like: 26,
-                    humidity: 65,
-                    wind_speed: 12,
-                    description: "Mostly Sunny",
-                    icon: "sun"
-                };
-                
-                // Display weather data
-                weatherWidget.innerHTML = `
-                    <div class="weather-icon">
-                        <i class="fas fa-${weather.icon}"></i>
-                    </div>
-                    <div class="weather-info">
-                        <div class="weather-temp">${weather.temp}°C</div>
-                        <div class="weather-desc">${weather.description}</div>
-                    </div>
-                `;
-                
-                // Add weather details
-                weatherWidget.innerHTML += `
-                    <div class="weather-details">
-                        <div class="weather-detail">
-                            <div><i class="fas fa-temperature-high"></i> Ressenti</div>
-                            <div class="weather-detail-value">${weather.feels_like}°C</div>
-                        </div>
-                        <div class="weather-detail">
-                            <div><i class="fas fa-wind"></i> Vent</div>
-                            <div class="weather-detail-value">${weather.wind_speed} km/h</div>
-                        </div>
-                        <div class="weather-detail">
-                            <div><i class="fas fa-tint"></i> Humidité</div>
-                            <div class="weather-detail-value">${weather.humidity}%</div>
-                        </div>
-                    </div>
-                `;
-            }, 500);
-        }
-
-function loadTrackingData() {
-    trackingData.innerHTML = `<tr><td colspan="2" class="loading">Chargement...</td></tr>`;
-    trackingRef.orderByChild('datetime').limitToLast(20).once('value')
-        .then(snapshot => {
-            const data = snapshot.val();
-            if (!data) {
-                trackingData.innerHTML = `<tr><td colspan="2">Aucune donnée historique</td></tr>`;
-                return;
-            }
-            // Trier par date descendante
-            const entries = Object.values(data).sort((a, b) => {
-                return new Date(b.datetime) - new Date(a.datetime);
-            });
-            trackingData.innerHTML = entries.map(entry => `
-                <tr>
-                    <td>${entry.locationName || '-'}</td>
-                    <td>${entry.datetime || '-'}</td>
-                </tr>
-            `).join('');
-        })
-        .catch(error => {
-            trackingData.innerHTML = `<tr><td colspan="2" class="error">Erreur chargement: ${error.message}</td></tr>`;
-        });
-}
-        function initializeApp() {
-    console.log("✅ initializeApp exécutée !");
-    fetchWeather();
-    loadTrackingData();
-    destinationName.textContent = DESTINATION_NAME;
-}
-</script>
-</body>
-</html>
+            status
