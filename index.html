@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoTrack - Suivi Bus Intelligent</title>
+    <title>NeoTrack - Smart Bus Monitoring</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -17,6 +17,7 @@
             --shadow-neon: 0 0 15px rgba(6, 182, 212, 0.5);
             --border-radius: 16px;
             --card-bg: rgba(30, 41, 59, 0.7);
+            --glass-effect: backdrop-filter: blur(12px);
         }
 
         * {
@@ -38,7 +39,7 @@
 
         .container {
             max-width: 1000px;
-            margin: 0 auto;
+            margin: 20px auto;
         }
 
         .glass-card {
@@ -68,11 +69,13 @@
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 32px;
             text-align: center;
-            margin: 0 auto 30px;
-            display: inline-block;
+            margin-bottom: 30px;
             position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
             padding-bottom: 10px;
         }
 
@@ -87,8 +90,320 @@
             border-radius: 2px;
         }
 
-        /* Reste du CSS inchangé... */
+        .pin-input {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .pin-input label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 18px;
+        }
+
+        .pin-input input {
+            width: 80%;
+            max-width: 400px;
+            padding: 15px 20px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 5px;
+            transition: all 0.3s;
+        }
+
+        .pin-input input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .full-width {
+                grid-column: span 2;
+            }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-header h3 {
+            margin-bottom: 0;
+        }
+
+        .card-header i {
+            color: var(--accent-color);
+            font-size: 20px;
+        }
+
+        .destination-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .destination-badge {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 18px;
+            margin-top: 10px;
+            box-shadow: var(--shadow-neon);
+        }
+
+        .quick-stops {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .quick-stop-btn {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quick-stop-btn:hover {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+            transform: translateY(-2px);
+        }
+
+        button#use-geolocation {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            grid-column: span 2;
+            font-weight: 600;
+        }
+
+        button#clean-data {
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
+            color: white;
+            border: none;
+            grid-column: span 2;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        tbody tr {
+            transition: background-color 0.3s;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
         
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            text-align: center;
+            border-radius: 12px;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .error {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Weather widget styles */
+        .weather-widget {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 15px 0;
+        }
+
+        .weather-icon {
+            font-size: 50px;
+            margin-right: 20px;
+            color: var(--accent-color);
+        }
+
+        .weather-info {
+            flex-grow: 1;
+        }
+
+        .weather-temp {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .weather-desc {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .weather-detail {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .weather-detail-value {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        /* Map container */
+        .map-container {
+            height: 400px;
+            width: 100%;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 20px auto;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--accent-color);
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Pin error message */
+        .pin-error {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Pin shake animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        /* New styles for user type indicator */
+        .user-type-indicator {
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            border-radius: 12px;
+        }
+
+        .driver-mode {
+            background-color: rgba(6, 182, 212, 0.2);
+            color: var(--accent-color);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .passenger-mode {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .last-update {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -96,60 +411,360 @@
 </head>
 <body>
     <div class="container">
-        <h1><i class="fas fa-bus"></i> NeoTrack</h1>
+        <h1><i class="fas fa-shuttle-van"></i> NeoTrack</h1>
         
         <div class="pin-input glass-card">
-            <label for="pin"><i class="fas fa-lock"></i> Entrez le code PIN</label>
+            <label for="pin"><i class="fas fa-lock"></i> Enter Access PIN</label>
             <input type="password" id="pin" placeholder="• • • •" maxlength="4" />
-            <div id="pin-error" class="pin-error">Code PIN incorrect</div>
+            <div id="pin-error" class="pin-error">Code PIN incorrect. Veuillez réessayer.</div>
         </div>
         
         <div id="content" class="hidden">
-            <!-- Contenu après authentification -->
+            <div id="user-type-indicator" class="user-type-indicator"></div>
+            <div id="status-message" class="status hidden"></div>
+            
+            <div class="dashboard">
+                <!-- Weather Widget -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h3>Alger Weather</h3>
+                        <i class="fas fa-cloud-sun"></i>
+                    </div>
+                    <div id="weather-widget" class="weather-widget">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+                
+                <!-- Current Position (Driver Only) -->
+                <div id="current-position-card" class="glass-card hidden">
+                    <div class="card-header">
+                        <h3>Position Actuelle</h3>
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div class="destination-info">
+                        <div>Bus actuellement à:</div>
+                        <div class="destination-badge" id="current-position-name">Aucune position</div>
+                        <div id="current-position-time" class="last-update"></div>
+                    </div>
+                </div>
+
+                <!-- Last Position (Passengers Only) -->
+                <div id="last-position-card" class="glass-card hidden">
+                    <div class="card-header">
+                        <h3>Dernière Position</h3>
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="destination-info">
+                        <div>Dernière position connue:</div>
+                        <div class="destination-badge" id="last-position-name">Chargement...</div>
+                        <div id="last-position-time" class="last-update"></div>
+                    </div>
+                </div>
+                
+                <!-- Bus Stops (Driver Only) -->
+                <div id="bus-stops-card" class="glass-card full-width hidden">
+                    <div class="card-header">
+                        <h3>Arrêts de Bus</h3>
+                        <i class="fas fa-map-signs"></i>
+                    </div>
+                    <div class="quick-stops" id="bus-stops-buttons">
+                        <button class="quick-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">
+                            <i class="fas fa-map-pin"></i> Zeralda
+                        </button>
+                        <button class="quick-stop-btn" data-name="SidiAbdallah1" data-lat="36.71623" data-lon="3.201724">
+                            <i class="fas fa-map-pin"></i> SidiAbdallah1
+                        </button>
+                        <button class="quick-stop-btn" data-name="sidiAbdallah2" data-lat="36.68229506332563" data-lon="2.854013786507855">
+                            <i class="fas fa-map-pin"></i> sidiAbdallah2
+                        </button>
+                        <button class="quick-stop-btn" data-name="sidiAbdallah3" data-lat="36.71000" data-lon="3.19800">
+                            <i class="fas fa-map-pin"></i> sidiAbdallah3
+                        </button>
+                        <button class="quick-stop-btn" data-name="Rahmania" data-lat="36.72500" data-lon="3.20500">
+                            <i class="fas fa-map-pin"></i> Rahmania
+                        </button>
+                        <button class="quick-stop-btn" data-name="Douera" data-lat="36.684369262072416" data-lon="2.950529435751952">
+                            <i class="fas fa-map-pin"></i> Douera
+                        </button>
+                        <button class="quick-stop-btn" data-name="BirTouta" data-lat="36.71000" data-lon="3.19800">
+                            <i class="fas fa-map-pin"></i> BirTouta
+                        </button>
+                    </div>
+                    <button id="clean-data" class="quick-stop-btn">
+                        <i class="fas fa-broom"></i> Nettoyer anciennes données
+                    </button>
+                </div>
+
+                <!-- Position History -->
+                <div class="glass-card full-width">
+                    <div class="card-header">
+                        <h3>Historique des Positions</h3>
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <table id="tracking-table">
+                        <thead>
+                            <tr>
+                                <th>Arrêt</th>
+                                <th>Heure</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracking-data">
+                            <tr>
+                                <td colspan="2" class="loading">Chargement de l'historique...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
+   
     <script>
-        // Configuration
-        const DRIVER_PIN = "1579";
-        const PASSENGER_PIN = "2024";
-        
-        // Initialisation
-        document.getElementById('pin').addEventListener('input', function(e) {
-            if (this.value.length === 4) {
-                if (this.value === DRIVER_PIN) {
-                    initializeDriverMode();
-                } else if (this.value === PASSENGER_PIN) {
-                    initializePassengerMode();
-                } else {
-                    document.getElementById('pin-error').style.display = 'block';
-                }
+        // Configuration constante
+        const DRIVER_PIN = "1579";      // Code chauffeur
+        const PASSENGER_PIN = "2024";   // Code passagers
+        const BUS_LINE = "Line 4742";
+        const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
+        const DESTINATION_NAME = "TRAVAIL";
+        const DEFAULT_LAT = 36.7538;  // Alger center
+        const DEFAULT_LON = 3.0588;   // Alger center
+
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
+            authDomain: "bustrack-cb124.firebaseapp.com",
+            databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
+            projectId: "bustrack-cb124",
+            storageBucket: "bustrack-cb124.firebasestorage.app",
+            messagingSenderId: "1010286119665",
+            appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
+        };
+
+        // Initialisation Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const trackingRef = database.ref('bustracking/' + BUS_LINE);
+
+        // DOM Elements
+        const pinInput = document.getElementById('pin');
+        const pinError = document.getElementById('pin-error');
+        const contentDiv = document.getElementById('content');
+        const userTypeIndicator = document.getElementById('user-type-indicator');
+        const currentPositionCard = document.getElementById('current-position-card');
+        const lastPositionCard = document.getElementById('last-position-card');
+        const currentPositionName = document.getElementById('current-position-name');
+        const currentPositionTime = document.getElementById('current-position-time');
+        const lastPositionName = document.getElementById('last-position-name');
+        const lastPositionTime = document.getElementById('last-position-time');
+        const trackingData = document.getElementById('tracking-data');
+        const busStopButtons = document.querySelectorAll('#bus-stops-buttons .quick-stop-btn');
+        const cleanDataBtn = document.getElementById('clean-data');
+
+        // Validate PIN and initialize modes
+        function validatePin() {
+            const pin = pinInput.value;
+            if (pin === DRIVER_PIN) {
+                initializeDriverMode();
+            } else if (pin === PASSENGER_PIN) {
+                initializePassengerMode();
+            } else {
+                pinError.style.display = 'block';
             }
-        });
+        }
 
+        // Initialize Driver Mode
         function initializeDriverMode() {
-            // Mode chauffeur
+            pinInput.parentElement.classList.add('hidden');
+            contentDiv.classList.remove('hidden');
+            
+            userTypeIndicator.textContent = "🚌 Mode Chauffeur";
+            userTypeIndicator.className = "user-type-indicator driver-mode";
+            
+            currentPositionCard.classList.remove('hidden');
+            lastPositionCard.classList.add('hidden');
+            document.getElementById('bus-stops-card').classList.remove('hidden');
+            
+            setupDriverControls();
+            initializeApp();
         }
 
+        // Initialize Passenger Mode
         function initializePassengerMode() {
-            // Mode passager
+            pinInput.parentElement.classList.add('hidden');
+            contentDiv.classList.remove('hidden');
+            
+            userTypeIndicator.textContent = "👥 Mode Passager - Consultation";
+            userTypeIndicator.className = "user-type-indicator passenger-mode";
+            
+            currentPositionCard.classList.add('hidden');
+            lastPositionCard.classList.remove('hidden');
+            document.getElementById('bus-stops-card').classList.add('hidden');
+            
+            startAutoRefresh();
+            initializeApp();
         }
 
-        // Fonctions utilitaires
+        // Setup Driver Controls
+        function setupDriverControls() {
+            busStopButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const name = btn.getAttribute('data-name');
+                    const lat = parseFloat(btn.getAttribute('data-lat'));
+                    const lon = parseFloat(btn.getAttribute('data-lon'));
+                    
+                    // Update current position and log it
+                    updateCurrentPosition(name);
+                    addLocationEntry(name, lat, lon);
+                });
+            });
+
+            // Clean data button
+            cleanDataBtn.addEventListener('click', function() {
+                if (confirm('Voulez-vous nettoyer toutes les anciennes données ?')) {
+                    purgeOldData();
+                }
+            });
+        }
+
+        // Update Current Position with time
+        function updateCurrentPosition(stopName) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            
+            currentPositionName.textContent = stopName;
+            currentPositionTime.textContent = `Signalé à ${timeString}`;
+            
+            showStatus(`Arrêt ${stopName} signalé à ${timeString}`);
+        }
+
+        // Function to add location entry to Firebase
+        function addLocationEntry(locationName, latitude, longitude) {
+            const now = new Date();
+            const formattedDate = formatDate(now);
+
+            const entry = {
+                locationName: locationName,
+                latitude: latitude,
+                longitude: longitude,
+                datetime: formattedDate
+            };
+
+            // Add the entry to Firebase
+            trackingRef.push(entry)
+                .then(() => {
+                    showStatus(`Position '${locationName}' enregistrée avec succès`);
+                    // Refresh tracking data
+                    loadTrackingData();
+                })
+                .catch((error) => {
+                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+                });
+        }
+
+        // Function to start auto-refresh for passengers
+        function startAutoRefresh() {
+            // First immediate update
+            updateLastPosition();
+            
+            // Then update every 30 seconds
+            setInterval(() => {
+                updateLastPosition();
+            }, 30000);
+        }
+
+        // Function to update the last position for passengers
+        function updateLastPosition() {
+            trackingRef.orderByChild('datetime').limitToLast(1).once('value')
+                .then(snapshot => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const lastEntry = Object.values(data)[0];
+                        lastPositionName.textContent = lastEntry.locationName || 'Position inconnue';
+                        
+                        // Format the date properly
+                        const entryDate = parseDate(lastEntry.datetime);
+                        if (!isNaN(entryDate.getTime())) {
+                            const timeString = entryDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                            const dateString = entryDate.toLocaleDateString('fr-FR');
+                            lastPositionTime.textContent = `Mis à jour: ${timeString} - ${dateString}`;
+                        } else {
+                            lastPositionTime.textContent = 'Date erronée';
+                        }
+                    } else {
+                        lastPositionName.textContent = 'Aucune position';
+                        lastPositionTime.textContent = '';
+                    }
+                })
+                .catch(error => {
+                    lastPositionName.textContent = 'Erreur de chargement';
+                    lastPositionTime.textContent = '';
+                });
+        }
+
+        // Fonction pour charger les données de suivi
+        function loadTrackingData() {
+            trackingData.innerHTML = `<tr><td colspan="2" class="loading">Chargement de l'historique...</td></tr>`;
+            trackingRef.orderByChild('datetime').limitToLast(20).once('value')
+                .then(snapshot => {
+                    const data = snapshot.val();
+                    if (!data) {
+                        trackingData.innerHTML = `<tr><td colspan="2">Aucune donnée historique</td></tr>`;
+                        return;
+                    }
+                    const entries = Object.values(data).sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+                    trackingData.innerHTML = entries.map(entry => {
+                        const entryDate = new Date(entry.datetime);
+                        const timeString = entryDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                        const dateString = entryDate.toLocaleDateString('fr-FR');
+                        return `
+                            <tr>
+                                <td>${entry.locationName || '-'}</td>
+                                <td>${timeString} - ${dateString}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                })
+                .catch(error => {
+                    trackingData.innerHTML = `<tr><td colspan="2" class="error">Erreur chargement: ${error.message}</td></tr>`;
+                });
+        }
+
+        // Fonction pour afficher les messages de statut
+        function showStatus(message, isError = false) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + (isError ? 'error' : 'success');
+            statusElement.style.display = 'block';
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+
+        // Fonction pour formater la date
         function formatDate(date) {
-            const options = { 
-                hour: '2-digit', 
-                minute: '2-digit',
+            return date.toLocaleString('fr-FR', {
                 day: '2-digit',
                 month: '2-digit',
-                year: 'numeric'
-            };
-            return date.toLocaleDateString('fr-FR', options);
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
         }
+
+        // Initialiser l'application
+        function initializeApp() {
+            fetchWeather();
+            loadTrackingData();
+        }
+
+        // Appel de la fonction d'initialisation
+        initializeApp();
     </script>
 </body>
-    <!-- Dans index.html -->
-<link rel="stylesheet" href="styles.css">
-<script src="app.js"></script>
-<script src="driver.js"></script>
 </html>
+
