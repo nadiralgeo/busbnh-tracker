@@ -1,110 +1,227 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoTrack - Bus Tracking System</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* Styles ici (comme dans votre ancien programme) */
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1><i class="fas fa-bus"></i> NeoTrack Bus</h1>
-        
-        <div class="pin-input glass-card">
-            <label for="pin"><i class="fas fa-lock"></i> Code d'accès</label>
-            <input type="password" id="pin" placeholder="• • • •" maxlength="4" />
-            <div id="pin-error" class="pin-error">Code incorrect. Veuillez réessayer.</div>
-        </div>
-        
-        <div id="content" class="hidden">
-            <div id="user-type-indicator" class="user-type-indicator"></div>
-            <div id="status-message" class="status hidden"></div>
-            
-            <div class="dashboard">
-                <!-- Weather Widget -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <h3>Météo Alger</h3>
-                        <i class="fas fa-cloud-sun"></i>
-                    </div>
-                    <div id="weather-widget" class="weather-widget">
-                        <div class="spinner"></div>
-                    </div>
-                </div>
-
-                <!-- Arrêts de Bus -->
-                <div id="bus-stops-card" class="glass-card full-width hidden">
-                    <div class="card-header">
-                        <h3>Arrêts de Bus</h3>
-                        <i class="fas fa-map-signs"></i>
-                    </div>
-                    <div class="bus-stops" id="bus-stops-buttons">
-                        <button class="bus-stop-btn" data-name="Zeralda">Zeralda</button>
-                        <button class="bus-stop-btn" data-name="Sidi Abdallah 1">Sidi Abdallah 1</button>
-                        <!-- Ajoutez d'autres arrêts ici -->
-                    </div>
-                </div>
-
-                <!-- Historique des Positions -->
-                <div class="glass-card full-width">
-                    <div class="card-header">
-                        <h3>Historique des Positions</h3>
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <table id="tracking-table">
-                        <thead>
-                            <tr>
-                                <th>Arrêt</th>
-                                <th>Heure</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tracking-data">
-                            <tr>
-                                <td colspan="2" class="loading">Chargement de l'historique...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+<!-- HTML Structure for Driver and Passenger Modes -->
+<div id="content" class="hidden">
+    <div id="user-type-indicator" class="user-type-indicator"></div>
+    <div id="status-message" class="status hidden"></div>
+    
+    <div class="bus-line-info">
+        <div class="bus-line-badge" id="bus-line-display">Ligne 4742</div>
+    </div>
+    
+    <div class="dashboard">
+        <!-- Weather Widget -->
+        <div class="glass-card">
+            <div class="card-header">
+                <h3>Météo Alger</h3>
+                <i class="fas fa-cloud-sun"></i>
+            </div>
+            <div id="weather-widget" class="weather-widget">
+                <div class="spinner"></div>
             </div>
         </div>
+        
+        <!-- Current Position (Driver Only) -->
+        <div id="current-position-card" class="glass-card hidden">
+            <div class="card-header">
+                <h3>Position Actuelle</h3>
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="destination-info">
+                <div>Bus actuellement à:</div>
+                <div class="destination-badge" id="current-position-name">Aucune position</div>
+            </div>
+        </div>
+
+        <!-- Last Position (Passengers Only) -->
+        <div id="last-position-card" class="glass-card hidden">
+            <div class="card-header">
+                <h3>Dernière Position</h3>
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="destination-info">
+                <div>Dernière position connue:</div>
+                <div class="destination-badge" id="last-position-name">Chargement...</div>
+                <div id="last-position-time" class="last-update"></div>
+            </div>
+        </div>
+        
+        <!-- Bus Stops (Driver Only) -->
+        <div id="bus-stops-card" class="glass-card full-width hidden">
+            <div class="card-header">
+                <h3>Arrêts de Bus</h3>
+                <i class="fas fa-map-signs"></i>
+            </div>
+            <div class="bus-stops" id="bus-stops-buttons">
+                <button class="bus-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">
+                    <i class="fas fa-map-pin"></i>
+                    <span>Zeralda</span>
+                </button>
+                <!-- Add more bus stop buttons as needed -->
+            </div>
+            <button id="clean-data" class="clean-data-btn">
+                <i class="fas fa-broom"></i> Nettoyer les anciennes données
+            </button>
+        </div>
+
+        <!-- Position History -->
+        <div class="glass-card full-width">
+            <div class="card-header">
+                <h3>Historique des Positions</h3>
+                <i class="fas fa-history"></i>
+            </div>
+            <table id="tracking-table">
+                <thead>
+                    <tr>
+                        <th>Arrêt</th>
+                        <th>Heure</th>
+                    </tr>
+                </thead>
+                <tbody id="tracking-data">
+                    <tr>
+                        <td colspan="2" class="loading">Chargement de l'historique...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+</div>
 
-    <script>
-        // Configuration Firebase et autres variables ici
+<script>
+// JavaScript Logic for Driver and Passenger Modes
+const DRIVER_PIN = "1579";      // Code chauffeur
+const PASSENGER_PIN = "2024";   // Code passagers
 
-        // Fonction pour valider le code PIN
-        function validatePin() {
-            const pin = pinInput.value;
-            if (pin === DRIVER_PIN) {
-                // Initialiser le mode chauffeur
-                initializeDriverMode();
-            } else if (pin === PASSENGER_PIN) {
-                // Initialiser le mode passager
-                initializePassengerMode();
-            } else {
-                // Afficher une erreur
-                pinError.style.display = 'block';
-            }
-        }
+let currentUser Type = null; // 'driver' ou 'passenger'
 
-        // Fonction pour signaler la position du bus
-        function signalBusPosition(stopName) {
-            // Ajouter la logique pour mettre à jour la position dans Firebase
-            console.log(`Bus signalé à l'arrêt: ${stopName}`);
-        }
+// Validate PIN and initialize modes
+function validatePin() {
+    const pin = pinInput.value;
+    
+    if (pin === DRIVER_PIN) {
+        currentUser Type = 'driver';
+        initializeDriverMode();
+    } else if (pin === PASSENGER_PIN) {
+        currentUser Type = 'passenger';
+        initializePassengerMode();
+    } else {
+        // Handle incorrect PIN
+        pinError.style.display = 'block';
+    }
+}
 
-        // Ajouter des écouteurs d'événements pour les boutons d'arrêt
-        document.querySelectorAll('.bus-stop-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const stopName = btn.getAttribute('data-name');
-                signalBusPosition(stopName);
-            });
+// Initialize Driver Mode
+function initializeDriverMode() {
+    pinInput.parentElement.classList.add('hidden');
+    contentDiv.classList.remove('hidden');
+    
+    userTypeIndicator.textContent = "🚌 Mode Chauffeur";
+    userTypeIndicator.className = "user-type-indicator driver-mode";
+    
+    currentPositionCard.classList.remove('hidden');
+    busStopsCard.classList.remove('hidden');
+    lastPositionCard.classList.add('hidden');
+    
+    setupDriverControls();
+}
+
+// Initialize Passenger Mode
+function initializePassengerMode() {
+    pinInput.parentElement.classList.add('hidden');
+    contentDiv.classList.remove('hidden');
+    
+    userTypeIndicator.textContent = "👥 Mode Passager - Consultation";
+    userTypeIndicator.className = "user-type-indicator passenger-mode";
+    
+    currentPositionCard.classList.add('hidden');
+    busStopsCard.classList.add('hidden');
+    lastPositionCard.classList.remove('hidden');
+    
+    startAutoRefresh();
+}
+
+// Setup Driver Controls
+function setupDriverControls() {
+    document.querySelectorAll('.bus-stop-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const name = btn.getAttribute('data-name');
+            const lat = parseFloat(btn.getAttribute('data-lat'));
+            const lon = parseFloat(btn.getAttribute('data-lon'));
+            
+            // Update current position and log it
+            updateCurrentPosition(name);
+            addLocationEntry(name, lat, lon);
         });
+    });
 
-        // Autres fonctions pour charger les données, etc.
-    </script>
-</body>
-</html>
+    // Clean data button
+    cleanDataBtn.addEventListener('click', function() {
+        if (confirm('Voulez-vous nettoyer toutes les anciennes données ?')) {
+            purgeOldData();
+        }
+    });
+}
+
+// Update Current Position
+function updateCurrentPosition(stopName) {
+    currentPositionName.textContent = stopName;
+    // Additional logic to visually update the UI can be added here
+}
+
+// Function to add location entry to Firebase
+function addLocationEntry(locationName, latitude, longitude) {
+    const now = new Date();
+    const formattedDate = formatDate(now);
+
+    const entry = {
+        locationName: locationName,
+        latitude: latitude,
+        longitude: longitude,
+        datetime: formattedDate
+    };
+
+    // Add the entry to Firebase
+    trackingRef.push(entry)
+        .then(() => {
+            showStatus(`Position '${locationName}' enregistrée avec succès`);
+            // Refresh tracking data
+            loadTrackingData();
+        })
+        .catch((error) => {
+            showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+        });
+}
+
+// Function to start auto-refresh for passengers
+function startAutoRefresh() {
+    setInterval(() => {
+        loadTrackingData();
+        updateLastPosition();
+    }, 30000);
+}
+
+// Function to update the last position for passengers
+function updateLastPosition() {
+    trackingRef.orderByChild('datetime').limitToLast(1).once('value')
+        .then(snapshot => {
+            const data = snapshot.val();
+            if (data) {
+                const lastEntry = Object.values(data)[0];
+                lastPositionName.textContent = lastEntry.locationName || 'Position inconnue';
+                lastPositionTime.textContent = `Mis à jour: ${lastEntry.datetime || 'Heure inconnue'}`;
+            } else {
+                lastPositionName.textContent = 'Aucune position';
+                lastPositionTime.textContent = '';
+            }
+        })
+        .catch(error => {
+            lastPositionName.textContent = 'Erreur de chargement';
+            lastPositionTime.textContent = '';
+        });
+}
+
+// Event listeners for PIN input
+pinInput.addEventListener('input', function() {
+    if (this.value.length === 4) {
+        validatePin();
+    }
+});
+</script>
