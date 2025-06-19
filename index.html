@@ -1,212 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- META + STYLE HEAD OMITTED FOR BREVITY, SAME AS AVANT.TXT -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeoTrack - Bus Tracking System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Styles ici (comme dans votre ancien programme) */
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1><i class="fas fa-bus"></i> NeoTrack Bus</h1>
+    <div class="container">
+        <h1><i class="fas fa-bus"></i> NeoTrack Bus</h1>
+        
+        <div class="pin-input glass-card">
+            <label for="pin"><i class="fas fa-lock"></i> Code d'accès</label>
+            <input type="password" id="pin" placeholder="• • • •" maxlength="4" />
+            <div id="pin-error" class="pin-error">Code incorrect. Veuillez réessayer.</div>
+        </div>
+        
+        <div id="content" class="hidden">
+            <div id="user-type-indicator" class="user-type-indicator"></div>
+            <div id="status-message" class="status hidden"></div>
+            
+            <div class="dashboard">
+                <!-- Weather Widget -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h3>Météo Alger</h3>
+                        <i class="fas fa-cloud-sun"></i>
+                    </div>
+                    <div id="weather-widget" class="weather-widget">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
 
-    <div class="pin-input glass-card">
-      <label for="pin"><i class="fas fa-lock"></i> Code d'accès</label>
-      <input type="password" id="pin" placeholder="• • • •" maxlength="4" />
-      <div id="pin-error" class="pin-error">Code incorrect. Veuillez réessayer.</div>
-      <div class="last-update">Chauffeur: 1579 | Passagers: 2024</div>
+                <!-- Arrêts de Bus -->
+                <div id="bus-stops-card" class="glass-card full-width hidden">
+                    <div class="card-header">
+                        <h3>Arrêts de Bus</h3>
+                        <i class="fas fa-map-signs"></i>
+                    </div>
+                    <div class="bus-stops" id="bus-stops-buttons">
+                        <button class="bus-stop-btn" data-name="Zeralda">Zeralda</button>
+                        <button class="bus-stop-btn" data-name="Sidi Abdallah 1">Sidi Abdallah 1</button>
+                        <!-- Ajoutez d'autres arrêts ici -->
+                    </div>
+                </div>
+
+                <!-- Historique des Positions -->
+                <div class="glass-card full-width">
+                    <div class="card-header">
+                        <h3>Historique des Positions</h3>
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <table id="tracking-table">
+                        <thead>
+                            <tr>
+                                <th>Arrêt</th>
+                                <th>Heure</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracking-data">
+                            <tr>
+                                <td colspan="2" class="loading">Chargement de l'historique...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="content" class="hidden">
-      <div id="user-type-indicator" class="user-type-indicator"></div>
-      <div id="status-message" class="status hidden"></div>
+    <script>
+        // Configuration Firebase et autres variables ici
 
-      <div class="bus-line-info">
-        <div class="bus-line-badge" id="bus-line-display">Ligne 4742</div>
-      </div>
-
-      <!-- DASHBOARD OMITTED FOR BREVITY, SAME STRUCTURE AS apres.txt -->
-    </div>
-  </div>
-
-  <!-- Firebase Scripts -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
-
-  <script>
-    const DRIVER_PIN = "1579";
-    const PASSENGER_PIN = "2024";
-    const BUS_LINE = "Line4742";
-
-    let currentUserType = null;
-    let currentBusPosition = null;
-
-    const firebaseConfig = { /* same as avant.txt */ };
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const trackingRef = database.ref('bustracking/' + BUS_LINE);
-
-    const pinInput = document.getElementById('pin');
-    const pinError = document.getElementById('pin-error');
-    const contentDiv = document.getElementById('content');
-    const userTypeIndicator = document.getElementById('user-type-indicator');
-    const trackingData = document.getElementById('tracking-data');
-    const currentPositionName = document.getElementById('current-position-name');
-    const lastPositionName = document.getElementById('last-position-name');
-    const lastPositionTime = document.getElementById('last-position-time');
-    const cleanDataBtn = document.getElementById('clean-data');
-
-    function formatDate(date) {
-      return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-    }
-
-    function parseDate(dateString) {
-      let parsedDate = new Date(dateString);
-      if (isNaN(parsedDate.getTime())) {
-        const [datePart, timePart] = dateString.split(' ');
-        const [day, month, year] = datePart.split('/');
-        const [hours, minutes, seconds] = timePart.split(':');
-        parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
-      }
-      return parsedDate;
-    }
-
-    function isToday(dateString) {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const entryDate = parseDate(dateString);
-      return !isNaN(entryDate.getTime()) && entryDate >= today;
-    }
-
-    function showStatus(message, isError = false) {
-      const el = document.getElementById('status-message');
-      el.textContent = message;
-      el.className = 'status ' + (isError ? 'error' : 'success');
-      el.style.display = 'block';
-      setTimeout(() => { el.style.display = 'none'; }, 3000);
-    }
-
-    function addLocationEntry(locationName, latitude, longitude) {
-      const now = new Date();
-      const formattedDate = formatDate(now);
-      const entry = { locationName, latitude, longitude, datetime: formattedDate };
-      trackingRef.push(entry)
-        .then(() => {
-          showStatus(`Position '\${locationName}' enregistrée avec succès`);
-          loadTrackingData();
-          if (currentUserType === 'passenger') updateLastPosition();
-        })
-        .catch(error => showStatus(`Erreur: \${error.message}`, true));
-    }
-
-    function loadTrackingData() {
-      trackingData.innerHTML = '<tr><td colspan="2" class="loading">Chargement...</td></tr>';
-      trackingRef.orderByChild('datetime').limitToLast(20).once('value')
-        .then(snapshot => {
-          const data = snapshot.val();
-          if (!data) {
-            trackingData.innerHTML = '<tr><td colspan="2">Aucune donnée</td></tr>';
-            return;
-          }
-          const entries = Object.values(data).sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-          trackingData.innerHTML = entries.map(e => `<tr><td>\${e.locationName}</td><td>\${e.datetime}</td></tr>`).join('');
-        });
-    }
-
-    function updateLastPosition() {
-      trackingRef.orderByChild('datetime').limitToLast(1).once('value')
-        .then(snapshot => {
-          const data = snapshot.val();
-          if (data) {
-            const entry = Object.values(data)[0];
-            lastPositionName.textContent = entry.locationName;
-            lastPositionTime.textContent = `Mis à jour: \${entry.datetime}`;
-          }
-        });
-    }
-
-    function purgeOldData() {
-      showStatus('Nettoyage en cours...');
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
-      trackingRef.once('value').then(snapshot => {
-        const data = snapshot.val(); if (!data) return;
-        const keysToDelete = [];
-        for (const [key, entry] of Object.entries(data)) {
-          const d = parseDate(entry.datetime);
-          const entryStr = d.toISOString().split('T')[0];
-          if (entryStr !== todayStr) keysToDelete.push(key);
+        // Fonction pour valider le code PIN
+        function validatePin() {
+            const pin = pinInput.value;
+            if (pin === DRIVER_PIN) {
+                // Initialiser le mode chauffeur
+                initializeDriverMode();
+            } else if (pin === PASSENGER_PIN) {
+                // Initialiser le mode passager
+                initializePassengerMode();
+            } else {
+                // Afficher une erreur
+                pinError.style.display = 'block';
+            }
         }
-        return Promise.all(keysToDelete.map(k => trackingRef.child(k).remove()));
-      }).then(() => {
-        showStatus('Nettoyage terminé');
-        loadTrackingData();
-      });
-    }
 
-    function fetchWeather() {
-      const widget = document.getElementById('weather-widget');
-      setTimeout(() => {
-        widget.innerHTML = `<div class="weather-icon"><i class="fas fa-sun"></i></div>
-          <div class="weather-info"><div class="weather-temp">24°C</div><div class="weather-desc">Ensoleillé</div></div>`;
-      }, 500);
-    }
+        // Fonction pour signaler la position du bus
+        function signalBusPosition(stopName) {
+            // Ajouter la logique pour mettre à jour la position dans Firebase
+            console.log(`Bus signalé à l'arrêt: ${stopName}`);
+        }
 
-    function initializeApp() {
-      fetchWeather();
-      loadTrackingData();
-      if (currentUserType === 'passenger') updateLastPosition();
-    }
+        // Ajouter des écouteurs d'événements pour les boutons d'arrêt
+        document.querySelectorAll('.bus-stop-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const stopName = btn.getAttribute('data-name');
+                signalBusPosition(stopName);
+            });
+        });
 
-    function initializeDriverMode() {
-      pinInput.parentElement.classList.add('hidden');
-      contentDiv.classList.remove('hidden');
-      userTypeIndicator.textContent = "🚌 Mode Chauffeur";
-      userTypeIndicator.className = "user-type-indicator driver-mode";
-      initializeApp();
-      document.querySelectorAll('.bus-stop-btn').forEach(btn => {
-        btn.onclick = () => {
-          const name = btn.dataset.name;
-          const lat = parseFloat(btn.dataset.lat);
-          const lon = parseFloat(btn.dataset.lon);
-          addLocationEntry(name, lat, lon);
-        };
-      });
-      if (cleanDataBtn) cleanDataBtn.onclick = () => {
-        if (confirm('Nettoyer toutes les données ?')) purgeOldData();
-      };
-    }
-
-    function initializePassengerMode() {
-      pinInput.parentElement.classList.add('hidden');
-      contentDiv.classList.remove('hidden');
-      userTypeIndicator.textContent = "👥 Mode Passager";
-      userTypeIndicator.className = "user-type-indicator passenger-mode";
-      initializeApp();
-      setInterval(() => {
-        loadTrackingData(); updateLastPosition();
-      }, 30000);
-    }
-
-    function validatePin() {
-      const pin = pinInput.value;
-      if (pin === DRIVER_PIN) {
-        currentUserType = 'driver';
-        initializeDriverMode();
-      } else if (pin === PASSENGER_PIN) {
-        currentUserType = 'passenger';
-        initializePassengerMode();
-      } else {
-        pinInput.classList.add('shake');
-        pinError.style.display = 'block';
-        setTimeout(() => pinInput.classList.remove('shake'), 500);
-      }
-    }
-
-    pinInput.addEventListener('input', () => {
-      if (pinInput.value.length === 4) validatePin();
-      if (pinError.style.display === 'block') pinError.style.display = 'none';
-    });
-
-    pinInput.addEventListener('keypress', e => {
-      if (e.key === 'Enter') validatePin();
-    });
-  </script>
+        // Autres fonctions pour charger les données, etc.
+    </script>
 </body>
 </html>
