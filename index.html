@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <title>NeoTrack - Smart Bus Monitoring</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -10,11 +11,14 @@
             --primary-dark: #0f172a;
             --primary-light: #1e293b;
             --accent-color: #06b6d4;
+            --accent-glow: #0891b2;
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --gradient-primary: linear-gradient(135deg, #0891b2, #0ea5e9);
+            --shadow-neon: 0 0 15px rgba(6, 182, 212, 0.5);
             --border-radius: 16px;
             --card-bg: rgba(30, 41, 59, 0.7);
+            --glass-effect: backdrop-filter: blur(12px);
         }
 
         * {
@@ -26,6 +30,9 @@
 
         body {
             background-color: var(--primary-dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.05) 0%, transparent 20%);
             color: var(--text-primary);
             min-height: 100vh;
             padding: 20px;
@@ -39,15 +46,49 @@
         .glass-card {
             background: var(--card-bg);
             border-radius: var(--border-radius);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 25px;
             margin-bottom: 25px;
-            transition: transform 0.3s;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), var(--shadow-neon);
+        }
+
+        h1, h2, h3 {
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
         }
 
         h1 {
             font-size: 32px;
             text-align: center;
             margin-bottom: 30px;
+            position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
+            padding-bottom: 10px;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 25%;
+            width: 50%;
+            height: 3px;
+            background: var(--gradient-primary);
+            border-radius: 2px;
         }
 
         .pin-input {
@@ -57,6 +98,7 @@
 
         .pin-input label {
             display: block;
+            font-weight: 600;
             margin-bottom: 12px;
             color: var(--text-secondary);
             font-size: 18px;
@@ -66,13 +108,258 @@
             width: 80%;
             max-width: 400px;
             padding: 15px 20px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             color: var(--text-primary);
             font-size: 18px;
             text-align: center;
             letter-spacing: 5px;
+            transition: all 0.3s;
         }
 
+        .pin-input input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .full-width {
+                grid-column: span 2;
+            }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-header h3 {
+            margin-bottom: 0;
+        }
+
+        .card-header i {
+            color: var(--accent-color);
+            font-size: 20px;
+        }
+
+        .destination-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .destination-badge {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 18px;
+            margin-top: 10px;
+            box-shadow: var(--shadow-neon);
+        }
+
+        .quick-stops {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .quick-stop-btn {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quick-stop-btn:hover {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+            transform: translateY(-2px);
+        }
+
+        button#use-geolocation {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            grid-column: span 2;
+            font-weight: 600;
+        }
+
+        button#clean-data {
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
+            color: white;
+            border: none;
+            grid-column: span 2;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        tbody tr {
+            transition: background-color 0.3s;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            text-align: center;
+            border-radius: 12px;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .error {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Weather widget styles */
+        .weather-widget {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 15px 0;
+        }
+
+        .weather-icon {
+            font-size: 50px;
+            margin-right: 20px;
+            color: var(--accent-color);
+        }
+
+        .weather-info {
+            flex-grow: 1;
+        }
+
+        .weather-temp {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .weather-desc {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .weather-detail {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .weather-detail-value {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        /* Map container */
+        .map-container {
+            height: 400px;
+            width: 100%;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 20px auto;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--accent-color);
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Pin error message */
         .pin-error {
             color: #ef4444;
             font-size: 14px;
@@ -80,8 +367,15 @@
             display: none;
         }
 
-        .hidden {
-            display: none !important;
+        /* Pin shake animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.5s;
         }
     </style>
 </head>
@@ -95,58 +389,547 @@
             <div id="pin-error" class="pin-error">Code PIN incorrect. Veuillez réessayer.</div>
         </div>
         
-        <div id="content" class="hidden">
-            <div id="user-type-indicator" class="user-type-indicator"></div>
-            <div id="status-message" class="status hidden"></div>
-            <!-- Placez ici le contenu de votre tableau et autres éléments -->
+        <div id="content" style="display: none;">
+            <div id="status-message" class="status" style="display: none;"></div>
+            
+            <div class="dashboard">
+                <!-- Weather Widget -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h3>Alger Weather</h3>
+                        <i class="fas fa-cloud-sun"></i>
+                    </div>
+                    <div id="weather-widget" class="weather-widget">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+                
+                <!-- Destination Info -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h3>Destination</h3>
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div class="destination-info">
+                        <div>Your current destination is:</div>
+                        <div class="destination-badge" id="destination-name">LOADING...</div>
+                    </div>
+                </div>
+                
+                <!-- Quick Stops -->
+                <div class="glass-card full-width">
+                    <div class="card-header">
+                        <h3>Arrêts habituels</h3>
+                        <i class="fas fa-thumbtack"></i>
+                    </div>
+                    <div class="quick-stops" id="quick-stops-buttons">
+                        <button class="quick-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">
+                            <i class="fas fa-map-pin"></i> Zeralda
+                        </button>
+                        <button class="quick-stop-btn" data-name="SidiAbdallah1" data-lat="36.71623" data-lon="3.201724">
+                            <i class="fas fa-map-pin"></i> SidiAbdallah1
+                        </button>
+                        <button class="quick-stop-btn" data-name="sidiAbdallah2" data-lat="36.68229506332563" data-lon="2.854013786507855">
+                            <i class="fas fa-map-pin"></i> sidiAbdallah2
+                        </button>
+                        <button class="quick-stop-btn" data-name="sidiAbdallah3" data-lat="36.71000" data-lon="3.19800">
+                            <i class="fas fa-map-pin"></i> sidiAbdallah3
+                        </button>
+                        <button class="quick-stop-btn" data-name="Rahmania" data-lat="36.72500" data-lon="3.20500">
+                            <i class="fas fa-map-pin"></i> Rahmania
+                        </button>
+                        <button class="quick-stop-btn" data-name="Douera" data-lat="36.684369262072416" data-lon="2.950529435751952">
+                            <i class="fas fa-map-pin"></i> Douera
+                        </button>
+                        <button class="quick-stop-btn" data-name="BirTouta" data-lat="36.71000" data-lon="3.19800">
+                            <i class="fas fa-map-pin"></i> BirTouta
+                        </button>
+                        <button id="use-geolocation" class="quick-stop-btn">
+                            <i class="fas fa-location-arrow"></i> Utiliser ma position
+                        </button>
+                        <button id="clean-data" class="quick-stop-btn">
+                            <i class="fas fa-broom"></i> Nettoyer anciennes données
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div class="glass-card full-width">
+                    <div class="card-header">
+                        <h3>Bus Tracking History</h3>
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <table id="tracking-table">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracking-data">
+                            <tr>
+                                <td colspan="2" class="loading">Loading tracking history...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Traffic Map -->
+                <div class="glass-card full-width">
+                    <div class="card-header">
+                        <h3>Alger Traffic Map</h3>
+                        <i class="fas fa-traffic-light"></i>
+                    </div>
+                    <div id="map-container" class="map-container"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Inline JavaScript -->
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
-        const DRIVER_PIN = "1579";      // Code chauffeur
-        const PASSENGER_PIN = "2024";   // Code passagers
+        // Configuration constante
+        const ACCESS_PIN = "1579";
+        const BUS_LINE = "Line 4742";
+        const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
+        const DESTINATION_NAME = "TRAVAIL";
+        const DEFAULT_LAT = 36.7538;  // Alger center
+        const DEFAULT_LON = 3.0588;   // Alger center
 
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
+            authDomain: "bustrack-cb124.firebaseapp.com",
+            databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
+            projectId: "bustrack-cb124",
+            storageBucket: "bustrack-cb124.firebasestorage.app",
+            messagingSenderId: "1010286119665",
+            appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
+        };
+
+        // Initialisation Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const trackingRef = database.ref('bustracking/' + BUS_LINE);
+
+        // DOM Elements
         const pinInput = document.getElementById('pin');
         const pinError = document.getElementById('pin-error');
         const contentDiv = document.getElementById('content');
-        const userTypeIndicator = document.getElementById('user-type-indicator');
+        const destinationName = document.getElementById('destination-name');
+        const trackingData = document.getElementById('tracking-data');
+        const mapContainer = document.getElementById('map-container');
+        const quickStopButtons = document.querySelectorAll('.quick-stop-btn');
+        const useGeolocationBtn = document.getElementById('use-geolocation');
+        const cleanDataBtn = document.getElementById('clean-data');
 
-        pinInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
+        // Initialize map
+        let map;
+        let marker;
+        let currentPosition = null;
+
+        // Pin validation
+        function validatePin() {
+            if (pinInput.value === ACCESS_PIN) {
+                pinInput.parentElement.style.display = 'none';
+                contentDiv.style.display = 'block';
+                
+                // Initialize content
+                initializeApp();
+                return true;
+            } else {
+                pinInput.classList.add('shake');
+                pinError.style.display = 'block';
+                setTimeout(() => {
+                    pinInput.classList.remove('shake');
+                }, 500);
+                return false;
+            }
+        }
+
+        // Add event listeners for PIN input
+        pinInput.addEventListener('input', function() {
+            // Auto-submit when 4 digits are entered
+            if (this.value.length === 4) {
+                validatePin();
+            }
+            
+            // Hide error message when typing
+            if (pinError.style.display === 'block') {
+                pinError.style.display = 'none';
+            }
+        });
+
+        pinInput.addEventListener('keypress', function(e) {
+            // Submit on Enter key
+            if (e.key === 'Enter') {
                 validatePin();
             }
         });
 
-        function validatePin() {
-            const pin = pinInput.value;
-            if (pin === DRIVER_PIN) {
-                initializeDriverMode();
-            } else if (pin === PASSENGER_PIN) {
-                initializePassengerMode();
-            } else {
-                pinError.style.display = 'block';
+        // Fonctions utilitaires pour la gestion des dates
+        function parseDate(dateString) {
+            // Essayer de parser différents formats de date
+            let parsedDate;
+            
+            // Essayer le format ISO
+            parsedDate = new Date(dateString);
+            
+            // Si ça ne marche pas, essayer le format localisé
+            if (isNaN(parsedDate.getTime())) {
+                // Format localisé comme "07/05/2025 11:03:29"
+                const [datePart, timePart] = dateString.split(' ');
+                const [day, month, year] = datePart.split('/');
+                const [hours, minutes, seconds] = timePart.split(':');
+                parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+            
+            return parsedDate;
+        }
+       
+        function formatDate(date) {
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        }
+
+        function getTodayStart() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return today;
+        }
+
+        function isToday(dateString) {
+            try {
+                const today = getTodayStart();
+                const entryDate = parseDate(dateString);
+                
+                // Vérifier si la date est valide
+                if (isNaN(entryDate.getTime())) {
+                    console.log(`Date invalide: ${dateString}`);
+                    return false;
+                }
+                
+                const isToday = entryDate >= today;
+                console.log(`Date: ${dateString}, Formattée: ${entryDate}, Est aujourd'hui: ${isToday}`);
+                return isToday;
+            } catch (error) {
+                console.error(`Erreur lors de la vérification de la date: ${dateString}`, error);
+                return false;
             }
         }
 
-        function initializeDriverMode() {
-            pinInput.parentElement.classList.add('hidden');
-            contentDiv.classList.remove('hidden');
-            userTypeIndicator.textContent = "🚌 Mode Chauffeur";
-            userTypeIndicator.className = "user-type-indicator driver-mode";
-            // Initialiser d'autres fonctionnalités pour le mode chauffeur
+        // Fonction pour afficher un message de statut
+        function showStatus(message, isError = false) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + (isError ? 'error' : 'success');
+            statusElement.style.display = 'block';
+            
+            // Masquer après 3 secondes
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
         }
 
-        function initializePassengerMode() {
-            pinInput.parentElement.classList.add('hidden');
-            contentDiv.classList.remove('hidden');
-            userTypeIndicator.textContent = "👥 Mode Passager - Consultation";
-            userTypeIndicator.className = "user-type-indicator passenger-mode";
-            // Initialiser d'autres fonctionnalités pour le mode passager
+        // Initialize map function
+        function initializeMap() {
+            // If map already exists, remove it
+            if (map) {
+                map.remove();
+            }
+            
+            // Create new map
+            map = L.map('map-container').setView([DEFAULT_LAT, DEFAULT_LON], 12);
+            
+            // Add OpenStreetMap tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Add default marker
+            marker = L.marker([DEFAULT_LAT, DEFAULT_LON]).addTo(map)
+                .bindPopup('Alger Centre')
+                .openPopup();
+                
+            // Add destination marker
+            L.marker([DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude])
+                .addTo(map)
+                .bindPopup(`Destination: ${DESTINATION_NAME}`)
+                .openPopup();
+                
+            // Update map size after it's loaded
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
+            
+            return map;
         }
-    </script>
+        
+        // Function to update map marker
+        function updateMapMarker(lat, lon, locationName) {
+            if (map && marker) {
+                // Update marker position
+                marker.setLatLng([lat, lon])
+                    .bindPopup(locationName)
+                    .openPopup();
+                
+                // Update map view to center on marker
+                map.setView([lat, lon], 14);
+                
+                // Store current position
+                currentPosition = {lat, lon, name: locationName};
+            }
+        }
+
+        // Function to handle geolocation
+        function useGeolocation() {
+            if ("geolocation" in navigator) {
+                showStatus("Récupération de votre position...");
+                
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        // Update map
+                        updateMapMarker(lat, lon, "Ma position actuelle");
+                        
+                        // Add entry to Firebase
+                        addLocationEntry("Ma position actuelle", lat, lon);
+                    },
+                    error => {
+                        showStatus(`Erreur de géolocalisation: ${error.message}`, true);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                showStatus("La géolocalisation n'est pas supportée par votre navigateur", true);
+            }
+        }
+
+        // Fonction pour ajouter une entrée de position
+        function addLocationEntry(locationName, latitude, longitude) {
+            const now = new Date();
+            const formattedDate = formatDate(now);
+
+            const entry = {
+                locationName: locationName,
+                latitude: latitude,
+                longitude: longitude,
+                datetime: formattedDate
+            };
+
+            // Ajouter l'entrée
+            trackingRef.push(entry)
+                .then(() => {
+                    showStatus(`Position '${locationName}' enregistrée avec succès`);
+                    
+                    // Update map if it exists
+                    updateMapMarker(latitude, longitude, locationName);
+                    
+                    // Refresh tracking data
+                    loadTrackingData();
+                })
+                .catch((error) => {
+                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+                });
+        }
+
+        // Fonction de nettoyage TOTALE
+        function purgeOldData() {
+            showStatus('Nettoyage des données en cours...');
+            
+            return new Promise((resolve, reject) => {
+                console.log('Démarrage du nettoyage approfondi des données anciennes');
+                
+                // Obtenir la date d'aujourd'hui à minuit
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayString = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+                
+                console.log(`Date de référence pour aujourd'hui: ${todayString}`);
+                
+                // Récupérer toutes les entrées
+                trackingRef.once('value')
+                    .then((snapshot) => {
+                        const data = snapshot.val();
+                        if (!data) {
+                            console.log('Aucune donnée trouvée dans la base');
+                            showStatus('Aucune donnée à nettoyer');
+                            resolve();
+                            return;
+                        }
+                        
+                        console.log(`Total de ${Object.keys(data).length} entrées trouvées`);
+                        
+                        // Créer un nouvel objet avec seulement les entrées d'aujourd'hui
+                        const todayEntries = {};
+                        const keysToRemove = [];
+                        
+                        Object.entries(data).forEach(([key, entry]) => {
+                            try {
+                                if (!entry.datetime) {
+                                    console.log(`Entrée sans date (clé: ${key}) - À supprimer`);
+                                    keysToRemove.push(key);
+                                    return;
+                                }
+                                
+                                // Convertir la date de l'entrée
+                                let entryDate;
+                                
+                                if (entry.datetime.includes('/')) {
+                                    // Format DD/MM/YYYY HH:MM:SS
+                                    const [datePart] = entry.datetime.split(' ');
+                                    const [day, month, year] = datePart.split('/');
+                                    entryDate = new Date(year, month - 1, day);
+                                } else {
+                                    // Format ISO ou autre
+                                    entryDate = new Date(entry.datetime);
+                                }
+                                
+                                // Vérifier si la date est valide
+                                if (isNaN(entryDate.getTime())) {
+                                    console.log(`Date invalide dans l'entrée (clé: ${key}): ${entry.datetime} - À supprimer`);
+                                    keysToRemove.push(key);
+                                    return;
+                                }
+                                
+                                // Convertir en format YYYY-MM-DD pour comparaison
+                                const entryDateString = entryDate.toISOString().split('T')[0];
+                                console.log(`Entrée (clé: ${key}): ${entry.datetime} => ${entryDateString}`);
+                                
+                                if (entryDateString === todayString) {
+                                    console.log(`Entrée conservée (clé: ${key}): ${entry.datetime}`);
+                                    todayEntries[key] = entry;
+                                } else {
+                                    console.log(`Entrée ancienne (clé: ${key}): ${entry.datetime} - À supprimer`);
+                                    keysToRemove.push(key);
+                                }
+                            } catch (error) {
+                                console.error(`Erreur lors du traitement de l'entrée (clé: ${key}):`, error);
+                                keysToRemove.push(key);
+                            }
+                        });
+                        
+                        console.log(`${Object.keys(todayEntries).length} entrées à conserver, ${keysToRemove.length} entrées à supprimer`);
+                        
+                        // Supprimer toutes les anciennes entrées une par une
+                        const removePromises = keysToRemove.map(key => {
+                            return trackingRef.child(key).remove()
+                                .then(() => console.log(`Entrée supprimée avec succès: ${key}`))
+                                .catch(error => console.error(`Erreur lors de la suppression de l'entrée ${key}:`, error));
+                        });
+                        
+                        return Promise.all(removePromises);
+                    })
+                    .then(() => {
+                        console.log('Nettoyage terminé avec succès');
+                        showStatus('Nettoyage des données terminé avec succès');
+                        loadTrackingData(); // Recharger les données
+                        resolve();
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors du nettoyage:', error);
+                        showStatus('Erreur lors du nettoyage des données', true);
+                        reject(error);
+                    
+                    });
+            });
+        }
+
+        // Fonction pour ajouter une entrée de position
+        function addLocationEntry(locationName, latitude, longitude) {
+            const now = new Date();
+            const formattedDate = formatDate(now);
+
+            const entry = {
+                locationName: locationName,
+                latitude: latitude,
+                longitude: longitude,
+                datetime: formattedDate
+            };
+
+            // Ajouter l'entrée
+            trackingRef.push(entry)
+                .then(() => {
+                    showStatus(`Position '${locationName}' enregistrée avec succès`);
+                    
+                    // Update map if it exists
+                    if (window.map && typeof window.updateMapMarker === 'function') {
+                        updateMapMarker(latitude, longitude, locationName);
+                    }
+                })
+                .catch((error) => {
+                    showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+                });
+        }
+
+        // Fonction pour récupérer et afficher la météo d'Alger
+        function fetchWeather() {
+            const weatherWidget = document.getElementById('weather-widget');
+            
+            // Alger coordinates
+            const lat = 36.7538;
+            const lon = 3.0588;
+            
+            // Simulate weather data (in a real app, you would fetch from a real API)
+            setTimeout(() => {
+                // Today's simulated weather for Alger (May 15, 2025)
+                const weather = {
+                    temp: 24,
+                    feels_like: 26,
+                    humidity: 65,
+                    wind_speed: 12,
+                    description: "Mostly Sunny",
+                    icon: "sun"
+                };
+                
+                // Display weather data
+                weatherWidget.innerHTML = `
+                    <div class="weather-icon">
+                        <i class="fas fa-${weather.icon}"></i>
+                    </div>
+                    <div class="weather-info">
+                        <div class="weather-temp">${weather.temp}°C</div>
+                        <div class="weather-desc">${weather.description}</div>
+                    </div>
+                `;
+                
+                // Add weather details
+                weatherWidget.innerHTML += `
+                    <div class="weather-details">
+                        <div class="weather-detail">
+                            <div><i class="fas fa-temperature-high"></i> Ressenti</div>
+                            <div class="weather-detail-value">${weather.feels_like}°C</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div><i class="fas fa-wind"></i> Vent</div>
+                            <div class="weather-detail-value">${weather.wind_speed} km/h</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div><i class="fas fa-tint"></i> Humidité</div>
+                            <div class="weather-detail-value">${weather.humidity}%</div>
+                        </div>
+                    </div>
+                `;
+            }, 500);
+        }
+
+        function loadTrackingData() {
+    trackingData.innerHTML = "<tr><td>Démo</td><td>" + new Date().toLocaleTimeString() + "</td></tr>";
+}
+        function initializeApp() {
+    console.log("✅ initializeApp exécutée !");
+    fetchWeather();
+    loadTrackingData();
+    destinationName.textContent = DESTINATION_NAME;
+}
+</script>
 </body>
 </html>
