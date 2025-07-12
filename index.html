@@ -753,7 +753,21 @@
     function initializeApp() {
         fetchWeather();
         loadTrackingData();
-        destinationName.textContent = DESTINATION_NAME;
+// Affiche "Maison" à partir de 16h, "travail" avant
+function getCurrentDestinationName() {
+    const now = new Date();
+    const hour = now.getHours();
+    if (hour >= 16) {
+        return "Maison";
+    } else {
+        return "travail";
+    }
+}
+destinationName.textContent = getCurrentDestinationName();
+// (optionnel) Mets à jour automatiquement toutes les minutes
+setInterval(() => {
+    destinationName.textContent = getCurrentDestinationName();
+}, 60000);
         // Ajoute listeners sur tous les arrêts rapides
         document.querySelectorAll('.quick-stop-btn').forEach(btn => {
             if (btn.id === "use-geolocation" || btn.id === "clean-data") return;
