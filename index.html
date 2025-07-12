@@ -479,16 +479,22 @@
                 </div>
                 
                 <!-- Traffic Map -->
-                <div class="glass-card full-width">
-                    <div class="card-header">
-                        <h3>Alger Traffic Map</h3>
-                        <i class="fas fa-traffic-light"></i>
-                    </div>
-                    <div id="map-container" class="map-container"></div>
-                </div>
-            </div>
-        </div>
-    </div>
+                <div class="glass-card full-width" style="text-align:center; margin: 20px 0;">
+  <a
+    href="https://maps.app.goo.gl/abhZkDb1Y5JdfxiTA"
+    target="_blank"
+    rel="noopener"
+    class="google-maps-link"
+    style="display: inline-block; padding: 14px 24px; background: #1a73e8; color: #fff; border-radius: 8px; font-size: 1.2em; text-decoration: none; font-weight: bold;"
+  >
+    📍 Voir le trajet Zeralda ⇄ BNH sur Google Maps
+  </a>
+  <div style="margin-top:8px; color:#666; font-size:0.98em;">
+    Matin : Zeralda → BNH<br>
+    Après-midi : BNH → Zeralda<br>
+    <span style="color:#e53935;">Trafic en temps réel disponible dans Google Maps</span>
+  </div>
+</div>
 
     <!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
@@ -524,12 +530,10 @@
     const contentDiv = document.getElementById('content');
     const destinationName = document.getElementById('destination-name');
     const trackingData = document.getElementById('tracking-data');
-    const mapContainer = document.getElementById('map-container');
+  
     const useGeolocationBtn = document.getElementById('use-geolocation');
     const cleanDataBtn = document.getElementById('clean-data');
 
-    let map;
-    let marker;
     let currentPosition = null;
 
     function validatePin() {
@@ -588,34 +592,6 @@
         }, 3000);
     }
 
-    function initializeMap() {
-        if (map) {
-            map.remove();
-        }
-        map = L.map('map-container').setView([DEFAULT_LAT, DEFAULT_LON], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-        marker = L.marker([DEFAULT_LAT, DEFAULT_LON]).addTo(map)
-            .bindPopup('Alger Centre')
-            .openPopup();
-        L.marker([DESTINATION_COORDS.latitude, DESTINATION_COORDS.longitude])
-            .addTo(map)
-            .bindPopup(`Destination: ${DESTINATION_NAME}`);
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 100);
-        return map;
-    }
-    function updateMapMarker(lat, lon, locationName) {
-        if (map && marker) {
-            marker.setLatLng([lat, lon])
-                .bindPopup(locationName)
-                .openPopup();
-            map.setView([lat, lon], 14);
-            currentPosition = {lat, lon, name: locationName};
-        }
-    }
 
     function useGeolocation() {
         if ("geolocation" in navigator) {
