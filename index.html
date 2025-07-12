@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <title>NeoTrack - Smart Bus Monitoring</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -334,14 +333,6 @@
             font-weight: 600;
             margin-top: 5px;
         }
-
-        /* Map container */
-        .map-container {
-            height: 400px;
-            width: 100%;
-            border-radius: var(--border-radius);
-            overflow: hidden;
-        }
         
         /* Loading spinner */
         .spinner {
@@ -499,7 +490,6 @@
     <!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
     // Configuration constante
     const ACCESS_PIN = "1579";
@@ -600,7 +590,7 @@
                 position => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-                    updateMapMarker(lat, lon, "Ma position actuelle");
+                   
                     addLocationEntry("Ma position actuelle", lat, lon);
                 },
                 error => {
@@ -764,7 +754,6 @@
         fetchWeather();
         loadTrackingData();
         destinationName.textContent = DESTINATION_NAME;
-        initializeMap();
         // Ajoute listeners sur tous les arrêts rapides
         document.querySelectorAll('.quick-stop-btn').forEach(btn => {
             if (btn.id === "use-geolocation" || btn.id === "clean-data") return;
