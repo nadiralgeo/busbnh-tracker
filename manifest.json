@@ -1,7 +1,7 @@
 {
-  "name": "Bus du Travail",
+  "name": "Bus 4247",
   "short_name": "BusTaf",
-  "start_url": "/",
+  "start_url": "/busbnh-tracker/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007bff",
