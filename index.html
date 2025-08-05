@@ -788,6 +788,18 @@ setInterval(() => {
         }
     }
 </script>
+                            <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(function(reg) {
+        console.log("Service worker enregistré avec succès !");
+      })
+      .catch(function(err) {
+        console.error("Erreur d’enregistrement du service worker :", err);
+      });
+  }
+</script>
 </body>
 </html>
+
 
