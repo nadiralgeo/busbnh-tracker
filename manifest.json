@@ -1,7 +1,7 @@
 {
   "name": "Bus 4247",
   "short_name": "BusTaf",
-  "start_url": "/busbnh-tracker/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007bff",
