@@ -8,7 +8,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007bff">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
         :root {
             --primary-dark: #0f172a;
@@ -226,6 +226,63 @@
             margin-top: 12px;
         }
 
+        /* Tracking Control Buttons */
+        .tracking-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .tracking-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .start-tracking {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .stop-tracking {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .tracking-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tracking-status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+
+        .tracking-active {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .tracking-inactive {
+            background: rgba(107, 114, 128, 0.2);
+            color: #6b7280;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
         table {
             width: 100%;
             border-collapse: separate;
@@ -372,6 +429,29 @@
         .shake {
             animation: shake 0.5s;
         }
+
+        /* Real-time marker styles */
+        .live-marker {
+            background: #10b981 !important;
+            border: 3px solid white !important;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.6) !important;
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -388,6 +468,26 @@
             <div id="status-message" class="status" style="display: none;"></div>
             
             <div class="dashboard">
+                <!-- Tracking Control Panel -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h3>Contrôle Tracking</h3>
+                        <i class="fas fa-satellite-dish"></i>
+                    </div>
+                    <div class="tracking-controls">
+                        <button id="start-tracking" class="tracking-btn start-tracking">
+                            <i class="fas fa-play"></i> Start Tracking
+                        </button>
+                        <button id="stop-tracking" class="tracking-btn stop-tracking" disabled>
+                            <i class="fas fa-stop"></i> Stop Tracking
+                        </button>
+                    </div>
+                    <div id="tracking-status" class="tracking-status tracking-inactive">
+                        <i class="fas fa-circle"></i> Tracking inactif
+                    </div>
+                    <div id="next-update" style="text-align: center; color: var(--text-secondary); margin-top: 10px; font-size: 14px;"></div>
+                </div>
+
                 <!-- Weather Widget -->
                 <div class="glass-card">
                     <div class="card-header">
@@ -418,8 +518,9 @@
                         <i class="fas fa-thumbtack"></i>
                     </div>
                     <div class="quick-stops" id="quick-stops-buttons">
-                         <button class="quick-stop-btn" data-name="StaDepart" data-lat="36.700000" data-lon="2.800000">
-            <i class="fas fa-map-pin"></i> Sta. Départ
+                        <button class="quick-stop-btn" data-name="StaDepart" data-lat="36.700000" data-lon="2.800000">
+                            <i class="fas fa-map-pin"></i> Sta. Départ
+                        </button>
                         <button class="quick-stop-btn" data-name="Zeralda" data-lat="36.68952235743" data-lon="2.8076611548766666">
                             <i class="fas fa-map-pin"></i> Zeralda
                         </button>
@@ -432,7 +533,7 @@
                         <button class="quick-stop-btn" data-name="sidiAbdallah3" data-lat="36.71000" data-lon="3.19800">
                             <i class="fas fa-map-pin"></i> sidiAbdallah3
                         </button>
-                              <button class="quick-stop-btn" data-name="zaatria" data-lat="36.6470" data-lon="2.8679">
+                        <button class="quick-stop-btn" data-name="zaatria" data-lat="36.6470" data-lon="2.8679">
                             <i class="fas fa-map-pin"></i> zaatria
                         </button>
                         <button class="quick-stop-btn" data-name="Rahmania" data-lat="36.72500" data-lon="3.20500">
@@ -443,6 +544,7 @@
                         </button>
                         <button class="quick-stop-btn" data-name="BirTouta" data-lat="36.71000" data-lon="3.19800">
                             <i class="fas fa-map-pin"></i> BirTouta
+                        </button>
                         <button class="quick-stop-btn" data-name="Garidi" data-lat="36.730000" data-lon="3.100000">
                             <i class="fas fa-map-pin"></i> Garidi
                         </button>
@@ -466,401 +568,635 @@
                             <tr>
                                 <th>Location</th>
                                 <th>Time</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="tracking-data">
                             <tr>
-                                <td colspan="2" class="loading">Loading tracking history...</td>
+                                <td colspan="3" class="loading">Loading tracking history...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 
-                <!-- Traffic Map -->
-              <div class="glass-card full-width">
-  <div class="card-header">
-    <h3>Carte en temps réel</h3>
-    <i class="fas fa-map"></i>
-  </div>
-  <div id="map" style="height:400px; border-radius:12px;"></div>
-</div>
-  <a
-    href="https://maps.app.goo.gl/abhZkDb1Y5JdfxiTA"
-    target="_blank"
-    rel="noopener"
-    class="google-maps-link"
-    style="display: inline-block; padding: 14px 24px; background: #1a73e8; color: #fff; border-radius: 8px; font-size: 1.2em; text-decoration: none; font-weight: bold;"
-  >
-    📍 Voir le trajet Zeralda ⇄ BNH sur Google Maps
-  </a>
-  <div style="margin-top:8px; color:#666; font-size:0.98em;">
-    Matin : Zeralda → BNH<br>
-    Après-midi : BNH → Zeralda<br>
-    <span style="color:#e53935;">Trafic en temps réel disponible uniquement dans Google Maps sinon plus de programation</span>
-  </div>
-</div>
+                <!-- Live Tracking Map -->
+                <div class="glass-card full-width">
+                    <div class="card-header">
+                        <h3>Suivi en Temps Réel</h3>
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <div id="map" style="height:400px; border-radius:12px;"></div>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <div id="last-update" style="color: var(--text-secondary); font-size: 14px;">
+                            Dernière mise à jour: Jamais
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Maps Link -->
+                <div class="glass-card full-width">
+                    <a href="https://maps.app.goo.gl/abhZkDb1Y5JdfxiTA" target="_blank" rel="noopener" 
+                       style="display: inline-block; padding: 14px 24px; background: #1a73e8; color: #fff; border-radius: 8px; font-size: 1.2em; text-decoration: none; font-weight: bold;">
+                        📍 Voir le trajet Zeralda ⇄ BNH sur Google Maps
+                    </a>
+                    <div style="margin-top:8px; color:#666; font-size:0.98em;">
+                        Matin : Zeralda → BNH<br>
+                        Après-midi : BNH → Zeralda<br>
+                        <span style="color:#e53935;">Trafic en temps réel disponible uniquement dans Google Maps</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
-<script>
-    // Configuration constante
-    const ACCESS_PIN = "1579";
-    const BUS_LINE = "Line 4742";
-    const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
-    const DESTINATION_NAME = "TRAVAIL";
-    const DEFAULT_LAT = 36.7538;  // Alger center
-    const DEFAULT_LON = 3.0588;   // Alger center
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
+    <script>
+        // Configuration constante
+        const ACCESS_PIN = "1579";
+        const BUS_LINE = "Line 4742";
+        const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
+        const DESTINATION_NAME = "TRAVAIL";
+        const DEFAULT_LAT = 36.7538;  // Alger center
+        const DEFAULT_LON = 3.0588;   // Alger center
+        const TRACKING_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
-    // Configuration Firebase
-    const firebaseConfig = {
-        apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
-        authDomain: "bustrack-cb124.firebaseapp.com",
-        databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
-        projectId: "bustrack-cb124",
-        storageBucket: "bustrack-cb124.firebasestorage.app",
-        messagingSenderId: "1010286119665",
-        appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
-    };
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
+            authDomain: "bustrack-cb124.firebaseapp.com",
+            databaseURL: "https://bustrack-cb124-default-rtdb.firebaseio.com",
+            projectId: "bustrack-cb124",
+            storageBucket: "bustrack-cb124.firebasestorage.app",
+            messagingSenderId: "1010286119665",
+            appId: "1:1010286119665:web:2158ebf53bf7af3641f750"
+        };
 
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const trackingRef = database.ref('bustracking/' + BUS_LINE);
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const trackingRef = database.ref('bustracking/' + BUS_LINE);
 
-    // DOM Elements
-    const pinInput = document.getElementById('pin');
-    const pinError = document.getElementById('pin-error');
-    const contentDiv = document.getElementById('content');
-    const destinationName = document.getElementById('destination-name');
-    const trackingData = document.getElementById('tracking-data');
-  
-    const useGeolocationBtn = document.getElementById('use-geolocation');
-    const cleanDataBtn = document.getElementById('clean-data');
+        // DOM Elements
+        const pinInput = document.getElementById('pin');
+        const pinError = document.getElementById('pin-error');
+        const contentDiv = document.getElementById('content');
+        const destinationName = document.getElementById('destination-name');
+        const trackingData = document.getElementById('tracking-data');
+        const useGeolocationBtn = document.getElementById('use-geolocation');
+        const cleanDataBtn = document.getElementById('clean-data');
+        const startTrackingBtn = document.getElementById('start-tracking');
+        const stopTrackingBtn = document.getElementById('stop-tracking');
+        const trackingStatusDiv = document.getElementById('tracking-status');
+        const nextUpdateDiv = document.getElementById('next-update');
+        const lastUpdateDiv = document.getElementById('last-update');
 
-    let currentPosition = null;
+        // Tracking variables
+        let trackingInterval = null;
+        let isTracking = false;
+        let nextUpdateTime = null;
+        let countdownInterval = null;
+        let currentPosition = null;
+        let map = null;
+        let busMarker = null;
+        let liveMarkers = [];
 
-    function validatePin() {
-        if (pinInput.value === ACCESS_PIN) {
-            pinInput.parentElement.style.display = 'none';
-            contentDiv.style.display = 'block';
-            initializeApp();
-            return true;
-        } else {
-            pinInput.classList.add('shake');
-            pinError.style.display = 'block';
-            setTimeout(() => {
-                pinInput.classList.remove('shake');
-            }, 500);
-            return false;
+        // Check if tracking is allowed (Sunday to Thursday)
+        function isTrackingAllowed() {
+            const now = new Date();
+            const day = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            return day >= 0 && day <= 4; // Sunday (0) to Thursday (4)
         }
-    }
 
-    pinInput.addEventListener('input', function() {
-        if (this.value.length === 4) {
-            validatePin();
-        }
-        if (pinError.style.display === 'block') {
-            pinError.style.display = 'none';
-        }
-    });
-    pinInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            validatePin();
-        }
-    });
-
-    function parseDate(dateString) {
-        let parsedDate = new Date(dateString);
-        if (isNaN(parsedDate.getTime())) {
-            const [datePart, timePart] = dateString.split(' ');
-            if (datePart && timePart) {
-                const [day, month, year] = datePart.split('/');
-                const [hours, minutes, seconds] = timePart.split(':');
-                parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
+        function validatePin() {
+            if (pinInput.value === ACCESS_PIN) {
+                pinInput.parentElement.style.display = 'none';
+                contentDiv.style.display = 'block';
+                initializeApp();
+                return true;
+            } else {
+                pinInput.classList.add('shake');
+                pinError.style.display = 'block';
+                setTimeout(() => {
+                    pinInput.classList.remove('shake');
+                }, 500);
+                return false;
             }
         }
-        return parsedDate;
-    }
-    function formatDate(date) {
-        return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-    }
 
-    function showStatus(message, isError = false) {
-        const statusElement = document.getElementById('status-message');
-        statusElement.textContent = message;
-        statusElement.className = 'status ' + (isError ? 'error' : 'success');
-        statusElement.style.display = 'block';
-        setTimeout(() => {
-            statusElement.style.display = 'none';
-        }, 3000);
-    }
+        pinInput.addEventListener('input', function() {
+            if (this.value.length === 4) {
+                validatePin();
+            }
+            if (pinError.style.display === 'block') {
+                pinError.style.display = 'none';
+            }
+        });
 
+        pinInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                validatePin();
+            }
+        });
 
-    function useGeolocation() {
-        if ("geolocation" in navigator) {
-            showStatus("Récupération de votre position...");
+        function parseDate(dateString) {
+            let parsedDate = new Date(dateString);
+            if (isNaN(parsedDate.getTime())) {
+                const [datePart, timePart] = dateString.split(' ');
+                if (datePart && timePart) {
+                    const [day, month, year] = datePart.split('/');
+                    const [hours, minutes, seconds] = timePart.split(':');
+                    parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
+                }
+            }
+            return parsedDate;
+        }
+
+        function formatDate(date) {
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        }
+
+        function showStatus(message, isError = false) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + (isError ? 'error' : 'success');
+            statusElement.style.display = 'block';
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+
+        function updateTrackingStatus(active) {
+            isTracking = active;
+            const statusElement = trackingStatusDiv;
+            const startBtn = startTrackingBtn;
+            const stopBtn = stopTrackingBtn;
+
+            if (active) {
+                statusElement.className = 'tracking-status tracking-active';
+                statusElement.innerHTML = '<i class="fas fa-circle pulse-animation"></i> Tracking actif';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                statusElement.className = 'tracking-status tracking-inactive';
+                statusElement.innerHTML = '<i class="fas fa-circle"></i> Tracking inactif';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                nextUpdateDiv.textContent = '';
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
+            }
+        }
+
+        function updateCountdown() {
+            if (!nextUpdateTime || !isTracking) return;
+            
+            const now = new Date();
+            const timeLeft = Math.max(0, nextUpdateTime - now);
+            
+            if (timeLeft === 0) {
+                nextUpdateDiv.textContent = 'Mise à jour en cours...';
+                return;
+            }
+            
+            const minutes = Math.floor(timeLeft / 60000);
+            const seconds = Math.floor((timeLeft % 60000) / 1000);
+            nextUpdateDiv.textContent = `Prochaine mise à jour dans: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function startAutoTracking() {
+            if (!isTrackingAllowed()) {
+                showStatus('Le tracking n\'est autorisé que du dimanche au jeudi', true);
+                return;
+            }
+
+            if (isTracking) {
+                showStatus('Le tracking est déjà actif', true);
+                return;
+            }
+
+            if ("geolocation" in navigator) {
+                // Première position immédiatement
+                getCurrentPositionAndSend();
+                
+                // Programmer les mises à jour automatiques
+                trackingInterval = setInterval(() => {
+                    if (isTrackingAllowed()) {
+                        getCurrentPositionAndSend();
+                    } else {
+                        stopAutoTracking();
+                        showStatus('Tracking arrêté - Autorisé seulement dimanche à jeudi', true);
+                    }
+                }, TRACKING_INTERVAL);
+
+                nextUpdateTime = new Date(Date.now() + TRACKING_INTERVAL);
+                countdownInterval = setInterval(updateCountdown, 1000);
+                
+                updateTrackingStatus(true);
+                showStatus('Tracking automatique démarré - Position envoyée toutes les 10 minutes');
+            } else {
+                showStatus("La géolocalisation n'est pas supportée par votre navigateur", true);
+            }
+        }
+
+        function stopAutoTracking() {
+            if (trackingInterval) {
+                clearInterval(trackingInterval);
+                trackingInterval = null;
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            nextUpdateTime = null;
+            updateTrackingStatus(false);
+            showStatus('Tracking automatique arrêté');
+        }
+
+        function getCurrentPositionAndSend() {
+            if (!navigator.geolocation) return;
+
             navigator.geolocation.getCurrentPosition(
                 position => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-                   
-                    addLocationEntry("Ma position actuelle", lat, lon);
+                    currentPosition = { lat, lon };
+                    
+                    addLocationEntry("AUTO-GPS", lat, lon, true);
+                    nextUpdateTime = new Date(Date.now() + TRACKING_INTERVAL);
                 },
                 error => {
-                    showStatus(`Erreur de géolocalisation: ${error.message}`, true);
+                    console.error('Erreur de géolocalisation automatique:', error.message);
+                    // Continue tracking même en cas d'erreur ponctuelle
+                    nextUpdateTime = new Date(Date.now() + TRACKING_INTERVAL);
                 },
                 {
                     enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0
+                    timeout: 10000,
+                    maximumAge: 60000
                 }
             );
-        } else {
-            showStatus("La géolocalisation n'est pas supportée par votre navigateur", true);
         }
-    }
 
-    // CORRECT: garde une seule version, complète !
-    function addLocationEntry(locationName, latitude, longitude) {
-        const now = new Date();
-        const formattedDate = formatDate(now);
-
-        const entry = {
-            locationName: locationName,
-            latitude: latitude,
-            longitude: longitude,
-            datetime: formattedDate
-        };
-
-        trackingRef.push(entry)
-            .then(() => {
-                showStatus(`Position '${locationName}' enregistrée avec succès`);
-                if (window.map && typeof window.updateMapMarker === 'function') {
-                    updateMapMarker(latitude, longitude, locationName);
-                }
-                loadTrackingData();
-            })
-            .catch((error) => {
-                showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
-            });
-    }
-
-    function purgeOldData() {
-        showStatus('Nettoyage des données en cours...');
-        return new Promise((resolve, reject) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split('T')[0];
-            trackingRef.once('value')
-                .then((snapshot) => {
-                    const data = snapshot.val();
-                    if (!data) {
-                        showStatus('Aucune donnée à nettoyer');
-                        resolve();
-                        return;
+        function useGeolocation() {
+            if ("geolocation" in navigator) {
+                showStatus("Récupération de votre position...");
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        addLocationEntry("Position manuelle", lat, lon);
+                    },
+                    error => {
+                        showStatus(`Erreur de géolocalisation: ${error.message}`, true);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
                     }
-                    const keysToRemove = [];
-                    Object.entries(data).forEach(([key, entry]) => {
-                        if (!entry.datetime) {
-                            keysToRemove.push(key);
-                            return;
-                        }
-                        let entryDate;
-                        if (entry.datetime.includes('/')) {
-                            const [datePart] = entry.datetime.split(' ');
-                            const [day, month, year] = datePart.split('/');
-                            entryDate = new Date(year, month - 1, day);
-                        } else {
-                            entryDate = new Date(entry.datetime);
-                        }
-                        if (isNaN(entryDate.getTime())) {
-                            keysToRemove.push(key);
-                            return;
-                        }
-                        const entryDateString = entryDate.toISOString().split('T')[0];
-                        if (entryDateString !== todayString) {
-                            keysToRemove.push(key);
-                        }
-                    });
-                    const removePromises = keysToRemove.map(key => {
-                        return trackingRef.child(key).remove();
-                    });
-                    return Promise.all(removePromises);
-                })
-                .then(() => {
-                    showStatus('Nettoyage des données terminé avec succès');
-                    loadTrackingData();
-                    resolve();
-                })
-                .catch(error => {
-                    showStatus('Erreur lors du nettoyage des données', true);
-                    reject(error);
-                });
-        });
-    }
-
-    // CHARGE L'HISTORIQUE RÉEL
-    function loadTrackingData() {
-        trackingData.innerHTML = '<tr><td colspan="2" class="loading">Chargement...</td></tr>';
-        trackingRef.orderByChild('datetime').limitToLast(20).once('value').then(snapshot => {
-            const data = snapshot.val();
-            if (!data) {
-                trackingData.innerHTML = '<tr><td colspan="2">Aucune donnée.</td></tr>';
-                return;
+                );
+            } else {
+                showStatus("La géolocalisation n'est pas supportée par votre navigateur", true);
             }
-            const entries = Object.values(data).sort((a, b) => parseDate(b.datetime) - parseDate(a.datetime));
-            trackingData.innerHTML = entries.map(entry => `
-                <tr>
-                    <td>${entry.locationName || 'Inconnu'}</td>
-                    <td>${entry.datetime || '-'}</td>
-                </tr>
-            `).join('');
-        }).catch(() => {
-            trackingData.innerHTML = '<tr><td colspan="2" class="error">Erreur lors du chargement</td></tr>';
-        });
-    }
+        }
 
-    // Widget météo (inchangé)
-    function fetchWeather() {
-        const weatherWidget = document.getElementById('weather-widget');
-        const lat = 36.7538;
-        const lon = 3.0588;
-        setTimeout(() => {
-            const weather = {
-                temp: 24,
-                feels_like: 26,
-                humidity: 65,
-                wind_speed: 12,
-                description: "Mostly Sunny",
-                icon: "sun"
+        function addLocationEntry(locationName, latitude, longitude, isAutomatic = false) {
+            const now = new Date();
+            const formattedDate = formatDate(now);
+
+            const entry = {
+                locationName: locationName,
+                latitude: latitude,
+                longitude: longitude,
+                datetime: formattedDate,
+                automatic: isAutomatic,
+                deviceId: getDeviceId()
             };
-            weatherWidget.innerHTML = `
-                <div class="weather-icon">
-                    <i class="fas fa-${weather.icon}"></i>
-                </div>
-                <div class="weather-info">
-                    <div class="weather-temp">${weather.temp}°C</div>
-                    <div class="weather-desc">${weather.description}</div>
-                </div>
-            `;
-            weatherWidget.innerHTML += `
-                <div class="weather-details">
-                    <div class="weather-detail">
-                        <div><i class="fas fa-temperature-high"></i> Ressenti</div>
-                        <div class="weather-detail-value">${weather.feels_like}°C</div>
-                    </div>
-                    <div class="weather-detail">
-                        <div><i class="fas fa-wind"></i> Vent</div>
-                        <div class="weather-detail-value">${weather.wind_speed} km/h</div>
-                    </div>
-                    <div class="weather-detail">
-                        <div><i class="fas fa-tint"></i> Humidité</div>
-                        <div class="weather-detail-value">${weather.humidity}%</div>
-                    </div>
-                </div>
-            `;
-        }, 500);
-    }
 
-    // INITIALISATION GLOBALE
-    function initializeApp() {
-        fetchWeather();
-        loadTrackingData();
-// Affiche "Maison" à partir de 16h, "travail" avant
-function getCurrentDestinationName() {
-    const now = new Date();
-    const hour = now.getHours();
-    if (hour >= 16) {
-        return "Maison";
-    } else {
-        return "travail";
-    }
-}
-// Active le tracking automatique toutes les 10 minutes
-function startAutoTracking() {
-    if ("geolocation" in navigator) {
-        setInterval(() => {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    addLocationEntry("Auto-GPS", lat, lon);
-                },
-                (error) => {
-                    console.error("Erreur de géolocalisation automatique:", error.message);
-                },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
-        }, 10 * 60 * 1000); // 10 minutes
-    }
-}
-// Init carte Leaflet
-window.map = L.map('map').setView([36.7538, 3.0588], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-}).addTo(window.map);
+            trackingRef.push(entry)
+                .then(() => {
+                    if (!isAutomatic) {
+                        showStatus(`Position '${locationName}' enregistrée avec succès`);
+                    }
+                    updateMapMarker(latitude, longitude, locationName, isAutomatic);
+                    loadTrackingData();
+                    updateLastUpdateTime();
+                })
+                .catch((error) => {
+                    if (!isAutomatic) {
+                        showStatus(`Erreur lors de l'enregistrement: ${error.message}`, true);
+                    }
+                    console.error('Erreur Firebase:', error);
+                });
+        }
 
-// Ajoute un marqueur global
-window.busMarker = L.marker([36.7538, 3.0588]).addTo(window.map);
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('neotrack_device_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('neotrack_device_id', deviceId);
+            }
+            return deviceId;
+        }
 
-// Fonction de mise à jour du marqueur
-window.updateMapMarker = function(lat, lon, label="Bus") {
-    if (window.busMarker) {
-        window.busMarker.setLatLng([lat, lon]).bindPopup(label).openPopup();
-        window.map.setView([lat, lon], 14);
-    }
-};
+        function updateLastUpdateTime() {
+            const now = new Date();
+            lastUpdateDiv.textContent = `Dernière mise à jour: ${formatDate(now)}`;
+        }
 
-// Mettre à jour automatiquement le dernier point
-trackingRef.limitToLast(1).on("child_added", (snapshot) => {
-    const data = snapshot.val();
-    if (data.latitude && data.longitude) {
-        updateMapMarker(data.latitude, data.longitude, data.locationName);
-    }
-});
-
-// Démarre automatiquement dès validation du PIN
-startAutoTracking();
-
-        
-destinationName.textContent = getCurrentDestinationName();
-// (optionnel) Mets à jour automatiquement toutes les minutes
-setInterval(() => {
-    destinationName.textContent = getCurrentDestinationName();
-}, 60000);
-        // Ajoute listeners sur tous les arrêts rapides
-        document.querySelectorAll('.quick-stop-btn').forEach(btn => {
-            if (btn.id === "use-geolocation" || btn.id === "clean-data") return;
-            btn.addEventListener('click', function() {
-                const name = this.dataset.name;
-                const lat = parseFloat(this.dataset.lat);
-                const lon = parseFloat(this.dataset.lon);
-                addLocationEntry(name, lat, lon);
+        function purgeOldData() {
+            showStatus('Nettoyage des données en cours...');
+            return new Promise((resolve, reject) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayString = today.toISOString().split('T')[0];
+                
+                trackingRef.once('value')
+                    .then((snapshot) => {
+                        const data = snapshot.val();
+                        if (!data) {
+                            showStatus('Aucune donnée à nettoyer');
+                            resolve();
+                            return;
+                        }
+                        
+                        const keysToRemove = [];
+                        Object.entries(data).forEach(([key, entry]) => {
+                            if (!entry.datetime) {
+                                keysToRemove.push(key);
+                                return;
+                            }
+                            
+                            let entryDate;
+                            if (entry.datetime.includes('/')) {
+                                const [datePart] = entry.datetime.split(' ');
+                                const [day, month, year] = datePart.split('/');
+                                entryDate = new Date(year, month - 1, day);
+                            } else {
+                                entryDate = new Date(entry.datetime);
+                            }
+                            
+                            if (isNaN(entryDate.getTime())) {
+                                keysToRemove.push(key);
+                                return;
+                            }
+                            
+                            const entryDateString = entryDate.toISOString().split('T')[0];
+                            if (entryDateString !== todayString) {
+                                keysToRemove.push(key);
+                            }
+                        });
+                        
+                        const removePromises = keysToRemove.map(key => {
+                            return trackingRef.child(key).remove();
+                        });
+                        
+                        return Promise.all(removePromises);
+                    })
+                    .then(() => {
+                        showStatus('Nettoyage des données terminé avec succès');
+                        loadTrackingData();
+                        resolve();
+                    })
+                    .catch(error => {
+                        showStatus('Erreur lors du nettoyage des données', true);
+                        reject(error);
+                    });
             });
-        });
-        if (useGeolocationBtn) {
-            useGeolocationBtn.addEventListener('click', useGeolocation);
         }
-        if (cleanDataBtn) {
-            cleanDataBtn.addEventListener('click', purgeOldData);
+
+        function loadTrackingData() {
+            trackingData.innerHTML = '<tr><td colspan="3" class="loading">Chargement...</td></tr>';
+            
+            trackingRef.orderByChild('datetime').limitToLast(50).once('value').then(snapshot => {
+                const data = snapshot.val();
+                if (!data) {
+                    trackingData.innerHTML = '<tr><td colspan="3">Aucune donnée.</td></tr>';
+                    return;
+                }
+                
+                const entries = Object.values(data).sort((a, b) => parseDate(b.datetime) - parseDate(a.datetime));
+                
+                trackingData.innerHTML = entries.map(entry => {
+                    const statusIcon = entry.automatic ? 
+                        '<i class="fas fa-satellite-dish" style="color: #10b981;" title="Automatique"></i>' : 
+                        '<i class="fas fa-hand-pointer" style="color: #f59e0b;" title="Manuel"></i>';
+                    
+                    return `
+                        <tr>
+                            <td>${entry.locationName || 'Inconnu'}</td>
+                            <td>${entry.datetime || '-'}</td>
+                            <td>${statusIcon}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Mettre à jour la carte avec les positions en temps réel
+                updateRealTimeMap(entries);
+            }).catch(() => {
+                trackingData.innerHTML = '<tr><td colspan="3" class="error">Erreur lors du chargement</td></tr>';
+            });
         }
-    }
-</script>
-                            <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(function(reg) {
-        console.log("Service worker enregistré avec succès !");
-      })
-      .catch(function(err) {
-        console.error("Erreur d’enregistrement du service worker :", err);
-      });
-  }
-</script>
+
+        function updateRealTimeMap(entries) {
+            if (!map) return;
+            
+            // Nettoyer les anciens marqueurs
+            liveMarkers.forEach(marker => map.removeLayer(marker));
+            liveMarkers = [];
+            
+            // Afficher seulement les positions automatiques récentes (dernières 4 heures)
+            const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const recentAutoPositions = entries.filter(entry => {
+                if (!entry.automatic) return false;
+                const entryTime = parseDate(entry.datetime);
+                return entryTime > fourHoursAgo;
+            });
+            
+            // Ajouter les marqueurs pour les positions récentes
+            recentAutoPositions.forEach((entry, index) => {
+                if (entry.latitude && entry.longitude) {
+                    const isLatest = index === 0; // Le plus récent
+                    const marker = L.marker([entry.latitude, entry.longitude], {
+                        icon: createCustomIcon(isLatest)
+                    }).addTo(map);
+                    
+                    const popupContent = `
+                        <div style="text-align: center;">
+                            <strong>${entry.locationName}</strong><br>
+                            ${entry.datetime}<br>
+                            ${isLatest ? '<span style="color: #10b981;">🔴 Position actuelle</span>' : ''}
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+                    
+                    liveMarkers.push(marker);
+                    
+                    // Centrer sur la position la plus récente
+                    if (isLatest) {
+                        map.setView([entry.latitude, entry.longitude], 14);
+                    }
+                }
+            });
+        }
+
+        function createCustomIcon(isLatest) {
+            const color = isLatest ? '#10b981' : '#06b6d4';
+            const pulseClass = isLatest ? 'pulse-animation' : '';
+            
+            return L.divIcon({
+                className: `custom-marker ${pulseClass}`,
+                html: `<div style="
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background: ${color};
+                    border: 3px solid white;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+                "></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        function updateMapMarker(lat, lon, label = "Bus", isAutomatic = false) {
+            if (!map) return;
+            
+            // Cette fonction n'est plus utilisée pour les marqueurs en temps réel
+            // Les marqueurs sont gérés par updateRealTimeMap()
+        }
+
+        function fetchWeather() {
+            const weatherWidget = document.getElementById('weather-widget');
+            
+            setTimeout(() => {
+                const weather = {
+                    temp: 24,
+                    feels_like: 26,
+                    humidity: 65,
+                    wind_speed: 12,
+                    description: "Mostly Sunny",
+                    icon: "sun"
+                };
+                
+                weatherWidget.innerHTML = `
+                    <div class="weather-icon">
+                        <i class="fas fa-${weather.icon}"></i>
+                    </div>
+                    <div class="weather-info">
+                        <div class="weather-temp">${weather.temp}°C</div>
+                        <div class="weather-desc">${weather.description}</div>
+                    </div>
+                `;
+                
+                weatherWidget.innerHTML += `
+                    <div class="weather-details">
+                        <div class="weather-detail">
+                            <div><i class="fas fa-temperature-high"></i> Ressenti</div>
+                            <div class="weather-detail-value">${weather.feels_like}°C</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div><i class="fas fa-wind"></i> Vent</div>
+                            <div class="weather-detail-value">${weather.wind_speed} km/h</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div><i class="fas fa-tint"></i> Humidité</div>
+                            <div class="weather-detail-value">${weather.humidity}%</div>
+                        </div>
+                    </div>
+                `;
+            }, 500);
+        }
+
+        function getCurrentDestinationName() {
+            const now = new Date();
+            const hour = now.getHours();
+            if (hour >= 16) {
+                return "Maison";
+            } else {
+                return "Travail";
+            }
+        }
+
+        function initializeMap() {
+            // Initialiser la carte Leaflet
+            map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Écouter les nouvelles entrées en temps réel
+            trackingRef.limitToLast(1).on("child_added", (snapshot) => {
+                const data = snapshot.val();
+                if (data.latitude && data.longitude && data.automatic) {
+                    // Recharger toutes les données pour mise à jour complète
+                    setTimeout(() => loadTrackingData(), 1000);
+                }
+            });
+        }
+
+        function initializeApp() {
+            fetchWeather();
+            loadTrackingData();
+            initializeMap();
+            
+            destinationName.textContent = getCurrentDestinationName();
+            
+            // Mettre à jour la destination toutes les minutes
+            setInterval(() => {
+                destinationName.textContent = getCurrentDestinationName();
+            }, 60000);
+            
+            // Event listeners pour les arrêts rapides
+            document.querySelectorAll('.quick-stop-btn').forEach(btn => {
+                if (btn.id === "use-geolocation" || btn.id === "clean-data" || 
+                    btn.id === "start-tracking" || btn.id === "stop-tracking") return;
+                    
+                btn.addEventListener('click', function() {
+                    const name = this.dataset.name;
+                    const lat = parseFloat(this.dataset.lat);
+                    const lon = parseFloat(this.dataset.lon);
+                    addLocationEntry(name, lat, lon);
+                });
+            });
+            
+            // Event listeners pour les contrôles
+            if (useGeolocationBtn) {
+                useGeolocationBtn.addEventListener('click', useGeolocation);
+            }
+            if (cleanDataBtn) {
+                cleanDataBtn.addEventListener('click', purgeOldData);
+            }
+            if (startTrackingBtn) {
+                startTrackingBtn.addEventListener('click', startAutoTracking);
+            }
+            if (stopTrackingBtn) {
+                stopTrackingBtn.addEventListener('click', stopAutoTracking);
+            }
+            
+            // Vérifier si le tracking doit être désactivé automatiquement
+            setInterval(() => {
+                if (isTracking && !isTrackingAllowed()) {
+                    stopAutoTracking();
+                    showStatus('Tracking arrêté automatiquement - Autorisé seulement dimanche à jeudi', true);
+                }
+            }, 60000); // Vérifier chaque minute
+        }
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(function(reg) {
+                    console.log("Service worker enregistré avec succès !");
+                })
+                .catch(function(err) {
+                    console.error("Erreur d'enregistrement du service worker :", err);
+                });
+        }
+    </script>
 </body>
 </html>
-
-
-
-
-
