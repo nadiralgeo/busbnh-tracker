@@ -614,16 +614,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.17.2/firebase-database-compat.min.js"></script>
     <script>
         // Configuration constante
-        js
-const ADMIN_PIN = "1579";
-const VIEWER_PIN = "2468"; // remplacez ceci par le PIN viewer souhaité
+        const ADMIN_PIN = "1579";
+        const VIEWER_PIN = "2468"; // remplacez ceci par le PIN viewer souhaité
         const BUS_LINE = "Line 4742";
         const DESTINATION_COORDS = { latitude: 36.71623, longitude: 3.201724 };
         const DESTINATION_NAME = "TRAVAIL";
         const DEFAULT_LAT = 36.7538;  // Alger center
         const DEFAULT_LON = 3.0588;   // Alger center
         const TRACKING_INTERVAL = 5 * 60 * 1000; // 10 minutes
-
+let userRole = null;
         // Configuration Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBub9gvQg0gARrTOd6EQnoJrpHoo_wjKx8",
@@ -1286,5 +1285,6 @@ const VIEWER_PIN = "2468"; // remplacez ceci par le PIN viewer souhaité
     </script>
 </body>
 </html>
+
 
 
