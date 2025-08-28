@@ -468,8 +468,8 @@
             <div id="status-message" class="status" style="display: none;"></div>
             
             <div class="dashboard">
-                <!-- Tracking Control Panel -->
-                <div class="glass-card">
+                <!-- Tracking Control Panel - Admin Only -->
+                <div class="glass-card" id="tracking-control-panel">
                     <div class="card-header">
                         <h3>Contrôle Tracking</h3>
                         <i class="fas fa-satellite-dish"></i>
@@ -511,8 +511,8 @@
                     </div>
                 </div>
                 
-                <!-- Quick Stops -->
-                <div class="glass-card full-width">
+                <!-- Quick Stops - Admin Only -->
+                <div class="glass-card full-width" id="quick-stops-panel">
                     <div class="card-header">
                         <h3>Arrêts habituels</h3>
                         <i class="fas fa-thumbtack"></i>
@@ -669,10 +669,21 @@
         }
 
         function validatePin() {
-            if (pinInput.value === ACCESS_PIN) {
+            const pinValue = pinInput.value;
+            
+            if (pinValue === ADMIN_PIN) {
+                userRole = 'admin';
                 pinInput.parentElement.style.display = 'none';
                 contentDiv.style.display = 'block';
                 initializeApp();
+                showStatus('Accès ADMIN - Contrôle tracking activé', false);
+                return true;
+            } else if (pinValue === VIEWER_PIN) {
+                userRole = 'viewer';
+                pinInput.parentElement.style.display = 'none';
+                contentDiv.style.display = 'block';
+                initializeApp();
+                showStatus('Accès VIEWER - Visualisation seulement', false);
                 return true;
             } else {
                 pinInput.classList.add('shake');
@@ -766,6 +777,12 @@
         }
 
         function startAutoTracking() {
+            // Seul l'ADMIN peut démarrer le tracking
+            if (userRole !== 'admin') {
+                showStatus('Accès refusé - Fonction réservée aux administrateurs', true);
+                return;
+            }
+
             if (!isTrackingAllowed()) {
                 showStatus('Le tracking n\'est autorisé que du dimanche au jeudi', true);
                 return;
@@ -801,6 +818,12 @@
         }
 
         function stopAutoTracking() {
+            // Seul l'ADMIN peut arrêter le tracking
+            if (userRole !== 'admin') {
+                showStatus('Accès refusé - Fonction réservée aux administrateurs', true);
+                return;
+            }
+            
             if (trackingInterval) {
                 clearInterval(trackingInterval);
                 trackingInterval = null;
@@ -840,6 +863,12 @@
         }
 
         function useGeolocation() {
+            // Seul l'ADMIN peut utiliser la géolocalisation manuelle
+            if (userRole !== 'admin') {
+                showStatus('Accès refusé - Fonction réservée aux administrateurs', true);
+                return;
+            }
+
             if ("geolocation" in navigator) {
                 showStatus("Récupération de votre position...");
                 navigator.geolocation.getCurrentPosition(
@@ -863,6 +892,12 @@
         }
 
         function addLocationEntry(locationName, latitude, longitude, isAutomatic = false) {
+            // Seul l'ADMIN peut ajouter des positions
+            if (userRole !== 'admin') {
+                showStatus('Accès refusé - Ajout de position réservé aux administrateurs', true);
+                return;
+            }
+
             const now = new Date();
             const formattedDate = formatDate(now);
 
@@ -872,7 +907,8 @@
                 longitude: longitude,
                 datetime: formattedDate,
                 automatic: isAutomatic,
-                deviceId: getDeviceId()
+                deviceId: getDeviceId(),
+                userRole: userRole
             };
 
             trackingRef.push(entry)
@@ -907,6 +943,12 @@
         }
 
         function purgeOldData() {
+            // Seul l'ADMIN peut nettoyer les données
+            if (userRole !== 'admin') {
+                showStatus('Accès refusé - Nettoyage réservé aux administrateurs', true);
+                return;
+            }
+
             showStatus('Nettoyage des données en cours...');
             return new Promise((resolve, reject) => {
                 const today = new Date();
@@ -1151,40 +1193,82 @@
                 destinationName.textContent = getCurrentDestinationName();
             }, 60000);
             
-            // Event listeners pour les arrêts rapides
-            document.querySelectorAll('.quick-stop-btn').forEach(btn => {
-                if (btn.id === "use-geolocation" || btn.id === "clean-data" || 
-                    btn.id === "start-tracking" || btn.id === "stop-tracking") return;
-                    
-                btn.addEventListener('click', function() {
-                    const name = this.dataset.name;
-                    const lat = parseFloat(this.dataset.lat);
-                    const lon = parseFloat(this.dataset.lon);
-                    addLocationEntry(name, lat, lon);
+            // Masquer les panneaux selon le rôle utilisateur
+            setupUserInterface();
+            
+            // Event listeners pour les arrêts rapides (ADMIN uniquement)
+            if (userRole === 'admin') {
+                document.querySelectorAll('.quick-stop-btn').forEach(btn => {
+                    if (btn.id === "use-geolocation" || btn.id === "clean-data" || 
+                        btn.id === "start-tracking" || btn.id === "stop-tracking") return;
+                        
+                    btn.addEventListener('click', function() {
+                        const name = this.dataset.name;
+                        const lat = parseFloat(this.dataset.lat);
+                        const lon = parseFloat(this.dataset.lon);
+                        addLocationEntry(name, lat, lon);
+                    });
                 });
-            });
-            
-            // Event listeners pour les contrôles
-            if (useGeolocationBtn) {
-                useGeolocationBtn.addEventListener('click', useGeolocation);
-            }
-            if (cleanDataBtn) {
-                cleanDataBtn.addEventListener('click', purgeOldData);
-            }
-            if (startTrackingBtn) {
-                startTrackingBtn.addEventListener('click', startAutoTracking);
-            }
-            if (stopTrackingBtn) {
-                stopTrackingBtn.addEventListener('click', stopAutoTracking);
-            }
-            
-            // Vérifier si le tracking doit être désactivé automatiquement
-            setInterval(() => {
-                if (isTracking && !isTrackingAllowed()) {
-                    stopAutoTracking();
-                    showStatus('Tracking arrêté automatiquement - Autorisé seulement dimanche à jeudi', true);
+                
+                // Event listeners pour les contrôles ADMIN
+                if (useGeolocationBtn) {
+                    useGeolocationBtn.addEventListener('click', useGeolocation);
                 }
-            }, 60000); // Vérifier chaque minute
+                if (cleanDataBtn) {
+                    cleanDataBtn.addEventListener('click', purgeOldData);
+                }
+                if (startTrackingBtn) {
+                    startTrackingBtn.addEventListener('click', startAutoTracking);
+                }
+                if (stopTrackingBtn) {
+                    stopTrackingBtn.addEventListener('click', stopAutoTracking);
+                }
+            }
+            
+            // Vérifier si le tracking doit être désactivé automatiquement (ADMIN uniquement)
+            if (userRole === 'admin') {
+                setInterval(() => {
+                    if (isTracking && !isTrackingAllowed()) {
+                        stopAutoTracking();
+                        showStatus('Tracking arrêté automatiquement - Autorisé seulement dimanche à jeudi', true);
+                    }
+                }, 60000); // Vérifier chaque minute
+            }
+        }
+
+        function setupUserInterface() {
+            const trackingPanel = document.getElementById('tracking-control-panel');
+            const quickStopsPanel = document.getElementById('quick-stops-panel');
+            
+            if (userRole === 'viewer') {
+                // Masquer les panneaux de contrôle pour les VIEWERS
+                if (trackingPanel) {
+                    trackingPanel.style.display = 'none';
+                }
+                if (quickStopsPanel) {
+                    quickStopsPanel.style.display = 'none';
+                }
+                
+                // Ajouter un indicateur de mode VIEWER
+                const statusElement = document.getElementById('status-message');
+                statusElement.innerHTML = '<i class="fas fa-eye"></i> Mode Visualisation - Vous pouvez voir les positions en temps réel';
+                statusElement.className = 'status success';
+                statusElement.style.display = 'block';
+                
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 5000);
+            } else if (userRole === 'admin') {
+                // Ajouter un indicateur de mode ADMIN
+                const statusElement = document.getElementById('status-message');
+                statusElement.innerHTML = '<i class="fas fa-crown"></i> Mode Administrateur - Contrôle total activé';
+                statusElement.className = 'status success';
+                statusElement.style.display = 'block';
+                
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 5000);
+            }
         }
 
         // Service Worker Registration
